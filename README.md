@@ -3,6 +3,6 @@ p05
 
 # Roster
 PM: Robert Chen
-Cody Wong
-Zixi Qiao
-Kalimul Kaif
+P1: Cody Wong
+P2: Zixi Qiao
+P3: Kalimul Kaif
