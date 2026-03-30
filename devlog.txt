@@ -1,1 +1,2 @@
-Robert chen -
+Robert chen -- 3/29/26 9:55
+  Made edits to design doc, corrected database organization, and properly formatted as tables. Added descriptions for non finance people, added teamflag.
