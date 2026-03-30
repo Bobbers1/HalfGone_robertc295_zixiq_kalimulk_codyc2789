@@ -1,2 +1,5 @@
 Robert chen -- 3/29/26 9:55
   Made edits to design doc, corrected database organization, and properly formatted as tables. Added descriptions for non finance people, added teamflag.
+
+Cody Wong -- 3/30/26 11:23
+  Added a Description to the markdown and reformated the markdown to make installation and understanding of our repo clear. 
