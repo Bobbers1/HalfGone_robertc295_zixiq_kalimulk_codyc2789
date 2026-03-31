@@ -9,3 +9,5 @@ Zixi Qiao -- 3/30/26 11:45
   Set up initial project structure, created sqlite tables in build_db.py
 Zixi Qiao -- 3/30/26 22:06
   Minimal Flask app in place
+Zixi Qiao -- 3/31/26 11:45
+  Brainstormed new feature with Cody extending beyond our MVP to implement.
