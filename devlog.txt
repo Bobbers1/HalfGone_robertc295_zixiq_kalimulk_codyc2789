@@ -5,3 +5,5 @@ Cody Wong -- 3/30/26 11:23
   Added a Description to the markdown and reformated the markdown to make installation and understanding of our repo clear. 
 Robert chen -- 3/30/11:42
   updated design doc
+Zixi Qiao -- 3/30/26 11:45
+  Set up initial project structure, created sqlite tables in build_db.py
