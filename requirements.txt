@@ -7,6 +7,7 @@ click==8.3.1
 curl_cffi==0.13.0
 Flask==3.1.3
 frozendict==2.4.7
+gunicorn>=21.2.0
 idna==3.11
 itsdangerous==2.2.0
 Jinja2==3.1.6
@@ -21,6 +22,7 @@ pycparser==3.0
 python-dateutil==2.9.0.post0
 pytz==2026.1.post1
 requests==2.33.0
+setuptools==82.0.1
 six==1.17.0
 soupsieve==2.8.3
 typing_extensions==4.15.0
@@ -28,4 +30,3 @@ urllib3==2.6.3
 websockets==16.0
 Werkzeug==3.1.7
 yfinance==1.2.0
-gunicorn==20.1.0
