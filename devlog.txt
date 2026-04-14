@@ -11,5 +11,7 @@ Zixi Qiao -- 3/30/26 22:06
   Minimal Flask app in place
 Zixi Qiao -- 3/31/26 11:45
   Brainstormed new feature with Cody extending beyond our MVP to implement.
-cody Wong -- 3/31/26 02:30
+Cody Wong -- 3/31/26 02:30
   Worked on a basic html with basic login for flask
+Zixi Qiao -- 4/13/26 23:00
+  Updated build_db.py, created initial explore html routing to stock_viewer, created initial stock viewer html using chart js
