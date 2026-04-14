@@ -15,3 +15,5 @@ Cody Wong -- 3/31/26 02:30
   Worked on a basic html with basic login for flask
 Zixi Qiao -- 4/13/26 23:00
   Updated build_db.py, created initial explore html routing to stock_viewer, created initial stock viewer html using chart js
+Cody Wong -- 4/14/26 11:22
+  Updated the installation guide so it is ready for testing on local host
