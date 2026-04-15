@@ -17,8 +17,7 @@ Pre-requisites:
 
 Clone and enter repo:
 ```
-$ git clone git@github.com:stuy-softdev/lost-duckies__codyw2789_hannahg61_sarahz40_stevenw92.git
-cd lost-duckies__codyw2789_hannahg61_sarahz40_stevenw92/
+$ git clone git@github.com:Bobbers1/HalfGone_robertc295_zixiq_kalimulk_codyc2789.git
 ```
 
 Create virtual environment:
