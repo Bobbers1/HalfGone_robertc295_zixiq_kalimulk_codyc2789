@@ -120,7 +120,7 @@ def explore():
     return render_template("explore.html")
 
 # -----------------------------
-#Stock Route            
+#Stock Route
 # -----------------------------
 @app.route("/stock")
 @login_required
@@ -132,7 +132,7 @@ def stock():
 
     try:
         data = yf.Ticker(ticker)
-        hist = data.history(period="5y")
+        hist = data.history(period="5y", interval="1d", auto_adjust=True, prepost=False)
 
         if hist.empty:
             flash("Invalid ticker or no data found.", "danger")
@@ -146,7 +146,7 @@ def stock():
             ticker=ticker.upper(),
             dates=dates,
             closes=closes,
-            latest_close=closes[-1],
+            latest_price=closes[-1],
             high=round(hist['High'].max(), 2),
             low=round(hist['Low'].min(), 2),
             avg_volume=f"{int(hist['Volume'].mean()):,}"
