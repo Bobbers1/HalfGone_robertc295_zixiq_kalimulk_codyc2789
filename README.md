@@ -45,7 +45,7 @@ From directory of where repo is stored
 
 Enter "app" section of repo:
 ```
-$ cd lost-duckies__codyw2789_hannahg61_sarahz40_stevenw92/app
+$ cd app
 ```
 
 Initialize database (this might be removed later on...):
