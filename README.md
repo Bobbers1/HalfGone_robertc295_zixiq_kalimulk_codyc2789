@@ -9,7 +9,7 @@ Kalimul Kaif - Visualizations <br>
 # DESCRIPTION:
 This project is an interactive stock exploration platform focused on major tech stocks and market leaders: AAPL, MSFT, AMZN, GOOGL, META, and NVDA. Users can register for an account and login to explore and compare these stocks through dynamic visualizations. The platform analyzes what differentiates these stocks in terms of growth over time, risk, and market behavior. Users can also compare FAANG+ stocks with other non-FAANG+ stocks they select. The dashboard displays indexed growth charts, risk vs return charts, and drawdown charts. An interactive exploration page allows users to select and compare stocks, while individual stock profiles provide detailed information.
 
-### Site: http://192.168.1.231:5000
+### Live Site: http://167.172.224.136
 # INSTALL GUIDE:
 Pre-requisites:
 - python3 installed
