@@ -5,12 +5,10 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import yfinance as yf
-import urllib.request
-import json
 import os
 
 app = Flask(__name__)
@@ -119,9 +117,58 @@ def dashboard():
 def explore():
     return render_template("explore.html")
 
-# -----------------------------
-#Stock Route            
-# -----------------------------
+FAANG_TICKERS = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA"]
+
+TICKER_NAMES = {
+    "AAPL": "Apple",
+    "MSFT": "Microsoft",
+    "AMZN": "Amazon",
+    "GOOGL": "Alphabet",
+    "META": "Meta",
+    "NVDA": "NVIDIA",
+}
+
+@app.route("/api/stocks")
+@login_required
+def api_stocks():
+    result = []
+    for symbol in FAANG_TICKERS:
+        try:
+            info = yf.Ticker(symbol).fast_info
+            price = round(float(info.last_price), 2)
+            prev = round(float(info.previous_close), 2)
+            change = round((price - prev) / prev * 100, 2) if prev else 0.0
+            result.append({
+                "ticker": symbol,
+                "name": TICKER_NAMES.get(symbol, symbol),
+                "price": price,
+                "change": change,
+            })
+        except Exception:
+            result.append({
+                "ticker": symbol,
+                "name": TICKER_NAMES.get(symbol, symbol),
+                "price": None,
+                "change": None,
+            })
+    return jsonify(result)
+
+@app.route("/api/search")
+@login_required
+def api_search():
+    ticker = request.args.get("ticker", "").upper().strip()
+    if not ticker:
+        return jsonify({"error": "Please provide a ticker symbol."}), 400
+    try:
+        info = yf.Ticker(ticker).fast_info
+        price = round(float(info.last_price), 2)
+        prev = round(float(info.previous_close), 2)
+        change = round((price - prev) / prev * 100, 2) if prev else 0.0
+        return jsonify({"ticker": ticker, "price": price, "change": change})
+    except Exception:
+        return jsonify({"error": "Couldn't find that stock. Try a different ticker."}), 404
+
+
 @app.route("/stock")
 @login_required
 def stock():

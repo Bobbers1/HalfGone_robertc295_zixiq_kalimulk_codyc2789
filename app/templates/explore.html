@@ -1,70 +1,134 @@
-<!-- Zixi Qiao, Robert Chen, Kalimul Kaif, Cody Wong -->
-<!-- HalfGone -->
-<!-- SoftDev -->
-<!-- P04 - Makers Makin' It, Act II -- The Seequel -->
-<!-- 2026-04-20 -->
-<!-- time spent: 1 -->
-
 <!DOCTYPE html>
 <html>
 <head>
     <title>Explore - FAANG+ Stock Explorer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
-    <nav class="bg-blue-600 text-white p-4 flex justify-between">
+    <nav class="bg-blue-600 text-white p-4 flex justify-between items-center">
         <h1 class="text-xl font-bold">FAANG+ Explorer</h1>
         <div>
-            <a href="/dashboard" class="mr-4">Dashboard</a>
-            <a href="/logout" class="text-red-200">Logout</a>
+            <a href="/dashboard" class="mr-4 hover:underline">Dashboard</a>
+            <a href="/explore" class="mr-4 font-semibold underline">Explore</a>
+            <a href="/logout" class="text-red-200 hover:underline">Logout</a>
         </div>
     </nav>
 
     <div class="container mx-auto p-8">
-        <h2 class="text-2xl font-bold mb-6">Explore Stocks</h2>
-        <div class="bg-white p-6 rounded shadow">
-            <label class="block text-gray-600 mb-2">Select a stock</label>
-            <select id="tickerSelect" class="border p-2 rounded w-64">
-                <option value="AAPL">AAPL - Apple Inc.</option>
-                <option value="MSFT">MSFT - Microsoft</option>
-                <option value="AMZN">AMZN - Amazon</option>
-                <option value="GOOGL">GOOGL - Alphabet</option>
-                <option value="META">META - Meta</option>
-                <option value="NVDA">NVDA - NVIDIA</option>
-            </select>
-            <button onclick="window.location.href='/stock?ticker=' + document.getElementById('tickerSelect').value"
-                class="ml-4 bg-blue-600 text-white px-4 py-2 rounded">
-                View Stock
-            </button>
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-800">Find your next investment</h2>
+            <p class="text-gray-500 mt-1">Browse popular tech stocks or search for any ticker below.</p>
+        </div>
 
-            <div class="flex-1">
-                <p class="text-sm text-gray-500 mb-2">Or type a ticker</p>
+        <div class="relative mb-10">
+            <input
+                id="searchInput"
+                type="text"
+                placeholder="Search any stock, e.g. TSLA..."
+                class="w-full border-2 border-gray-300 focus:border-blue-500 outline-none p-3 rounded-lg text-lg"
+                autocomplete="off"
+            >
+            <div id="autocomplete" class="hidden absolute z-10 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 w-full"></div>
+            <p id="searchError" class="text-red-500 text-sm mt-2 hidden"></p>
+        </div>
 
-                <input
-                    id="tickerInput"
-                    type="text"
-                    placeholder="e.g. TSLA"
-                    class="border p-2 rounded w-full"
-                >
-
-                <button
-                    onclick="goToStock()"
-                    class="mt-3 bg-green-600 text-white px-4 py-2 rounded w-full"
-                >
-                View Typed Stock
-                </button>
-            </div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Quick picks</h3>
+        <div id="stockGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="col-span-full text-center text-gray-400 py-8">Loading stocks...</div>
         </div>
     </div>
 
     <script>
-        function goToStock() {
-        const ticker = document.getElementById('tickerInput').value.trim();
+        const SUGGESTIONS = [
+            { ticker: "AAPL", name: "Apple" },
+            { ticker: "MSFT", name: "Microsoft" },
+            { ticker: "AMZN", name: "Amazon" },
+            { ticker: "GOOGL", name: "Alphabet" },
+            { ticker: "META", name: "Meta" },
+            { ticker: "NVDA", name: "NVIDIA" },
+            { ticker: "TSLA", name: "Tesla" },
+            { ticker: "NFLX", name: "Netflix" },
+            { ticker: "AMD", name: "AMD" },
+            { ticker: "INTC", name: "Intel" },
+        ];
 
-        if (!ticker) return;
+        function goToStock(ticker) {
+            window.location.href = '/stock?ticker=' + encodeURIComponent(ticker.toUpperCase());
+        }
 
-        window.location.href = '/stock?ticker=' + ticker;
-    }
+        function renderCard(stock) {
+            const changeColor = stock.change >= 0 ? 'text-green-600' : 'text-red-500';
+            const arrow = stock.change >= 0 ? '▲' : '▼';
+            const priceText = stock.price !== null ? '$' + stock.price.toFixed(2) : '—';
+            const changeText = stock.change !== null ? arrow + ' ' + Math.abs(stock.change).toFixed(2) + '%' : '—';
+
+            return `
+                <button onclick="goToStock('${stock.ticker}')"
+                    class="bg-white rounded-xl shadow hover:shadow-md transition p-4 text-left w-full border border-gray-100 hover:border-blue-300">
+                    <p class="text-lg font-bold text-gray-800">${stock.ticker}</p>
+                    <p class="text-sm text-gray-500 mb-3">${stock.name}</p>
+                    <p class="text-xl font-semibold text-gray-900">${priceText}</p>
+                    <p class="text-sm font-medium ${changeColor}">${changeText}</p>
+                </button>
+            `;
+        }
+
+        async function loadStockCards() {
+            const grid = document.getElementById('stockGrid');
+            try {
+                const res = await fetch('/api/stocks');
+                const stocks = await res.json();
+                grid.innerHTML = stocks.map(renderCard).join('');
+            } catch {
+                grid.innerHTML = '<div class="col-span-full text-center text-red-400 py-8">Couldn\'t load stocks right now. Try refreshing.</div>';
+            }
+        }
+
+        function showAutocomplete(matches) {
+            const box = document.getElementById('autocomplete');
+            if (!matches.length) {
+                box.classList.add('hidden');
+                return;
+            }
+            box.innerHTML = matches.map(m =>
+                `<div class="px-4 py-2 hover:bg-blue-50 cursor-pointer text-gray-800" onclick="goToStock('${m.ticker}')">
+                    <span class="font-semibold">${m.ticker}</span>
+                    <span class="text-gray-500 text-sm ml-2">${m.name}</span>
+                </div>`
+            ).join('');
+            box.classList.remove('hidden');
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        const searchError = document.getElementById('searchError');
+
+        searchInput.addEventListener('input', () => {
+            const val = searchInput.value.trim().toUpperCase();
+            searchError.classList.add('hidden');
+            if (val.length < 1) {
+                document.getElementById('autocomplete').classList.add('hidden');
+                return;
+            }
+            const matches = SUGGESTIONS.filter(s =>
+                s.ticker.startsWith(val) || s.name.toUpperCase().startsWith(val)
+            );
+            showAutocomplete(matches);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const ticker = searchInput.value.trim();
+                if (ticker) goToStock(ticker);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#searchInput') && !e.target.closest('#autocomplete')) {
+                document.getElementById('autocomplete').classList.add('hidden');
+            }
+        });
+
+        loadStockCards();
     </script>
 </body>
 </html>
