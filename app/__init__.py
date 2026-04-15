@@ -5,72 +5,160 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, redirect, url_for, request, session, flash
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+import yfinance as yf
 import urllib.request
 import json
-import yfinance as yf
+import os
 
 app = Flask(__name__)
 app.secret_key = 'half_gone'
 
+DATABASE = "database.db"
+
+# -----------------------------
+# Database Helper Funcs
+# -----------------------------
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# -----------------------------
+# Auth Routes
+# -----------------------------
 @app.route("/")
 def home():
-    return redirect(url_for('login'))
+    return redirect(url_for("login"))
 
-@app.route("/register", methods=['GET', 'POST'])
+@app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        # TODO: Add logic to hash password and insert into DB
-        return redirect(url_for('login'))
+        username = request.form["username"]
+        password = request.form["password"]
+
+        hashed_password = generate_password_hash(password)
+
+        try:
+            conn = get_db_connection()
+            conn.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, hashed_password)
+            )
+            conn.commit()
+            conn.close()
+
+            flash("Registration successful. Please log in.", "success")
+            return redirect(url_for("login"))
+
+        except sqlite3.IntegrityError:
+            flash("Username already exists.", "danger")
+
     return render_template("register.html")
 
-@app.route("/login", methods=['GET', 'POST'])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # TODO: Add logic to verify credentials
-        session['user'] = request.form['username']
-        return redirect(url_for('dashboard'))
+        username = request.form["username"]
+        password = request.form["password"]
+
+        conn = get_db_connection()
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ?", (username,)
+        ).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user["password"], password):
+            session["user"] = user["username"]
+            flash("Login successful!", "success")
+            return redirect(url_for("dashboard"))
+        else:
+            flash("Invalid username or password.", "danger")
+
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    flash("Logged out successfully.", "info")
+    return redirect(url_for("login"))
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user" not in session:
+            flash("Please log in first.", "warning")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    return render_template("dashboard.html")
+    return render_template("dashboard.html", user=session["user"])
 
 @app.route("/explore")
+@login_required
 def explore():
-    if 'user' not in session:
-        return redirect(url_for('login'))
     return render_template("explore.html")
 
+# -----------------------------
+#Stock Route            
+# -----------------------------
 @app.route("/stock")
+@login_required
 def stock():
-    ticker = request.args.get('ticker')
+    ticker = request.args.get("ticker")
+
     if not ticker:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for("dashboard"))
 
-    data = yf.Ticker(ticker)
-    hist = data.history(period="5y")
+    try:
+        data = yf.Ticker(ticker)
+        hist = data.history(period="5y")
 
-    dates = hist.index.strftime('%Y-%m-%d').tolist()
-    closes = hist['Close'].round(2).tolist()
+        if hist.empty:
+            flash("Invalid ticker or no data found.", "danger")
+            return redirect(url_for("dashboard"))
 
-    return render_template("stock_viewer.html",
-        ticker=ticker,
-        dates=dates,
-        closes=closes,
-        latest_close=closes[-1],
-        high=round(hist['High'].max(), 2),
-        low=round(hist['Low'].min(), 2),
-        avg_volume=f"{int(hist['Volume'].mean()):,}"
-    )
+        dates = hist.index.strftime('%Y-%m-%d').tolist()
+        closes = hist['Close'].round(2).tolist()
 
+        return render_template(
+            "stock_viewer.html",
+            ticker=ticker.upper(),
+            dates=dates,
+            closes=closes,
+            latest_close=closes[-1],
+            high=round(hist['High'].max(), 2),
+            low=round(hist['Low'].min(), 2),
+            avg_volume=f"{int(hist['Volume'].mean()):,}"
+        )
+
+    except Exception:
+        flash("Error fetching stock data.", "danger")
+        return redirect(url_for("dashboard"))
+
+# -----------------------------
+# Run App
+# -----------------------------
 if __name__ == "__main__":
-    app.debug = True
+    app.run(debug=True)
     app.run(host='0.0.0.0', port=5000)
