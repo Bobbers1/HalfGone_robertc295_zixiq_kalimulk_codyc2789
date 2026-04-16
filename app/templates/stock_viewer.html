@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{ ticker }} - FAANG+ Stock Explorer</title>
+    <title>{{ ticker }}{% if compare %} vs {{ compare }}{% endif %} - FAANG+ Stock Explorer</title>
     <link href="{{ url_for('static', filename='tailwind.min.css') }}" rel="stylesheet">
     <script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
 </head>
@@ -16,51 +16,94 @@
     </nav>
 
     <div class="container mx-auto p-8">
-        <div class="bg-white p-6 rounded shadow mb-8">
-            <h2 class="text-3xl font-bold">{{ ticker }}</h2>
-            <div class="mt-4 grid grid-cols-4 gap-4">
-                <div class="bg-gray-50 p-4 rounded">
-                    <p class="text-gray-500 text-sm">Latest Price</p>
-                    <p class="text-xl font-bold">${{ latest_price }}</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <p class="text-gray-500 text-sm">5Y High</p>
-                    <p class="text-xl font-bold">${{ high }}</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <p class="text-gray-500 text-sm">5Y Low</p>
-                    <p class="text-xl font-bold">${{ low }}</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <p class="text-gray-500 text-sm">Avg Volume</p>
-                    <p class="text-xl font-bold">{{ avg_volume }}</p>
+
+        <div class="grid grid-cols-1 {% if compare %}grid-cols-2{% endif %} gap-6 mb-8">
+
+            <!-- Ticker 1 -->
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-3xl font-bold mb-4">{{ ticker }}</h2>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">Latest Price</p>
+                        <p class="text-xl font-bold">${{ latest_price }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">5Y High</p>
+                        <p class="text-xl font-bold">${{ high }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">5Y Low</p>
+                        <p class="text-xl font-bold">${{ low }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">Avg Volume</p>
+                        <p class="text-xl font-bold">{{ avg_volume }}</p>
+                    </div>
                 </div>
             </div>
+
+            <!-- Ticker 2 (compare mode only) -->
+            {% if compare %}
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-3xl font-bold mb-4">{{ compare }}</h2>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">Latest Price</p>
+                        <p class="text-xl font-bold">${{ latest2 }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">5Y High</p>
+                        <p class="text-xl font-bold">${{ high2 }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">5Y Low</p>
+                        <p class="text-xl font-bold">${{ low2 }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <p class="text-gray-500 text-sm">Avg Volume</p>
+                        <p class="text-xl font-bold">{{ avg_vol2 }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
+        <!-- Price chart -->
         <div class="bg-white p-4 rounded shadow">
-            <h3 class="text-lg font-semibold mb-4">Price History</h3>
+            <h3 class="text-lg font-semibold mb-4">
+                Price History{% if compare %}: {{ ticker }} vs {{ compare }}{% endif %}
+            </h3>
             <canvas id="stockChart"></canvas>
         </div>
     </div>
 
     <script>
         const labels = {{ dates | tojson }};
-        const prices = {{ closes | tojson }};
+        const prices1 = {{ closes1 | tojson }};
+        const prices2 = {{ closes2 | tojson }};
+        const compareMode = {{ 'true' if compare else 'false' }};
 
-        const ctx = document.getElementById('stockChart').getContext('2d');
-        new Chart(ctx, {
+        const datasets = [{
+            label: '{{ ticker }} Close Price',
+            data: prices1,
+            borderColor: 'rgb(59, 130, 246)',
+            tension: 0.1,
+            pointRadius: 0
+        }];
+
+        if (compareMode) {
+            datasets.push({
+                label: '{{ compare }} Close Price',
+                data: prices2,
+                borderColor: 'rgb(234, 88, 12)',
+                tension: 0.1,
+                pointRadius: 0
+            });
+        }
+
+        new Chart(document.getElementById('stockChart').getContext('2d'), {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Close Price',
-                    data: prices,
-                    borderColor: 'rgb(59, 130, 246)',
-                    tension: 0.1,
-                    pointRadius: 0
-                }]
-            },
+            data: { labels, datasets },
             options: {
                 scales: {
                     x: { ticks: { maxTicksLimit: 12 } },
