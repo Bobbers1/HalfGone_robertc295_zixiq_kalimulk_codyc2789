@@ -27,3 +27,5 @@ Zixi Qiao -- 4/15/26 21:20
   Updated explore to not route to dashboard when invalid ticker given, flashes error as well. Updated to use tailwind and chartjs locally from static folder instead of cdn link to avoid noscript blocking
 Zixi Qiao -- 4/15/26 22:55
   Updated explore and stock_viewer to add compare functionality between two stocks
+Zixi Qiao -- 4/16/26 11:43
+  Fixed buggy requirements.txt, finally added dataset
