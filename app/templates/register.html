@@ -9,8 +9,23 @@
 <html>
 <head>
     <title>Register - FAANG+ Stock Explorer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='tailwind.min.css') }}" rel="stylesheet">
 </head>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      {% if category == 'danger' %}
+        <div class="mb-4 p-3 rounded bg-red-100 text-red-700 border border-red-300">
+          {{ message }}
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="bg-white p-6 rounded shadow">
+
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="bg-white p-8 rounded shadow-md w-96">
         <h1 class="text-2xl font-bold mb-6 text-center">Register</h1>

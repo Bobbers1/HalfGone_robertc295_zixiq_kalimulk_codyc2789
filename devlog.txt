@@ -21,3 +21,9 @@ Robert Chen -- 4/14/26 22:09
   updated init.py so that login and logout work. added sqlite3 dbs and logic
 Zixi Qiao -- 4/14/26 23:30
   Updated explore.html to have a new search bar to enter tickers and see stock data, misc clean up of repo, trying to figure out why css and js breaks on Mr. Mykolyk's machine
+Zixi Qiao -- 4/15/26 11:45
+  Updated chart and fixed misunderstanding over latest close vs price
+Zixi Qiao -- 4/15/26 21:20
+  Updated explore to not route to dashboard when invalid ticker given, flashes error as well. Updated to use tailwind and chartjs locally from static folder instead of cdn link to avoid noscript blocking
+Zixi Qiao -- 4/15/26 22:55
+  Updated explore and stock_viewer to add compare functionality between two stocks

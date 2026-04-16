@@ -126,35 +126,62 @@ def explore():
 @login_required
 def stock():
     ticker = request.args.get("ticker")
+    compare = request.args.get("compare")
 
     if not ticker:
         return redirect(url_for("dashboard"))
 
     try:
-        data = yf.Ticker(ticker)
-        hist = data.history(period="5y", interval="1d", auto_adjust=True, prepost=False)
+        def fetch(t):
+            data = yf.Ticker(t)
+            hist = data.history(period="5y", interval="1d", auto_adjust=True, prepost=False)
+            if hist.empty:
+                raise ValueError(f"Invalid ticker or no data found for {t.upper()}.")
+            return hist
 
-        if hist.empty:
-            flash("Invalid ticker or no data found.", "danger")
-            return redirect(url_for("dashboard"))
+        hist1 = fetch(ticker)
 
-        dates = hist.index.strftime('%Y-%m-%d').tolist()
-        closes = hist['Close'].round(2).tolist()
+        # Compare mode
+        if compare:
+            hist2 = fetch(compare)
+            common_dates = hist1.index.intersection(hist2.index)
+            hist1 = hist1.loc[common_dates]
+            hist2 = hist2.loc[common_dates]
+            dates = common_dates.strftime('%Y-%m-%d').tolist()
+            closes2 = hist2['Close'].round(2).tolist()
+            high2 = round(hist2['High'].max(), 2)
+            low2 = round(hist2['Low'].min(), 2)
+            avg_vol2 = f"{int(hist2['Volume'].mean()):,}"
+            latest2 = closes2[-1]
+        else:
+            dates = hist1.index.strftime('%Y-%m-%d').tolist()
+            closes2 = high2 = low2 = avg_vol2 = latest2 = None
+
+        closes1 = hist1['Close'].round(2).tolist()
 
         return render_template(
             "stock_viewer.html",
             ticker=ticker.upper(),
+            compare=compare.upper() if compare else None,
             dates=dates,
-            closes=closes,
-            latest_price=closes[-1],
-            high=round(hist['High'].max(), 2),
-            low=round(hist['Low'].min(), 2),
-            avg_volume=f"{int(hist['Volume'].mean()):,}"
+            closes1=closes1,
+            closes2=closes2,
+            latest_price=closes1[-1],
+            latest2=latest2,
+            high=round(hist1['High'].max(), 2),
+            high2=high2,
+            low=round(hist1['Low'].min(), 2),
+            low2=low2,
+            avg_volume=f"{int(hist1['Volume'].mean()):,}",
+            avg_vol2=avg_vol2,
         )
 
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("explore"))
     except Exception:
         flash("Error fetching stock data.", "danger")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("explore"))
 
 # -----------------------------
 # Run App
