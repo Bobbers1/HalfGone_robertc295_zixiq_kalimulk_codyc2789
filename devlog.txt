@@ -29,3 +29,5 @@ Zixi Qiao -- 4/15/26 22:55
   Updated explore and stock_viewer to add compare functionality between two stocks
 Zixi Qiao -- 4/16/26 11:43
   Fixed buggy requirements.txt, finally added dataset
+Robert Chen -- 4/16/26 11:46 
+  Fixed error messages for login
