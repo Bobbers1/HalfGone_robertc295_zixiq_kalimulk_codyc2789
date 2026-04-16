@@ -31,3 +31,5 @@ Zixi Qiao -- 4/16/26 11:43
   Fixed buggy requirements.txt, finally added dataset
 Robert Chen -- 4/16/26 11:46 
   Fixed error messages for login
+Cody Wong -- 4/16/26 11:46
+  Revised a bit of the design document/working on the supply chain visualization 
