@@ -136,7 +136,7 @@ def stock():
 
         if hist.empty:
             flash("Invalid ticker or no data found.", "danger")
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("explore"))
 
         dates = hist.index.strftime('%Y-%m-%d').tolist()
         closes = hist['Close'].round(2).tolist()
