@@ -183,6 +183,8 @@ def stock():
         flash("Error fetching stock data.", "danger")
         return redirect(url_for("explore"))
 
+
+
 # -----------------------------
 # Run App
 # -----------------------------
