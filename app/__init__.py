@@ -18,7 +18,6 @@ app = Flask(__name__)
 app.secret_key = 'half_gone'
 
 DATABASE = "database.db"
-CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
 
 # -----------------------------
 # Database Helper Funcs
@@ -41,36 +40,6 @@ def init_db():
     conn.close()
 
 init_db()
-
-# Params:
-    # ticker: stock id
-    # limit: number of entries (eg. 30 = last 30 days)
-# Returns: list of dicts, each containing stock data on a certain day
-# DO NOT move this function definition, must happen after init_db()
-def get_stock_data_from_csv(ticker: str, limit: int = None) -> list[dict]:
-    ticker = ticker.upper()
-    results = []
-
-    with open(CSV_PATH, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row["Ticker"].upper() == ticker:
-                for col in (
-                    "Open", "High", "Low", "Close", "Volume",
-                    "SMA_7", "SMA_21", "EMA_12", "EMA_26",
-                    "RSI_14", "MACD", "MACD_Signal",
-                    "Bollinger_Upper", "Bollinger_Lower",
-                    "Daily_Return", "Volatility_7d", "Next_Day_Close",
-                ):
-                    try:
-                        row[col] = float(row[col]) if row[col] else None
-                    except ValueError:
-                        row[col] = None
-                results.append(row)
-
-    results.sort(key=lambda r: r["Date"], reverse=True)
-
-    return results[:limit] if limit is not None else results
 
 # -----------------------------
 # Auth Routes
@@ -214,8 +183,6 @@ def stock():
     except Exception:
         flash("Error fetching stock data.", "danger")
         return redirect(url_for("explore"))
-
-
 
 # -----------------------------
 # Run App
