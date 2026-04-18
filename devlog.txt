@@ -1,9 +1,10 @@
-Robert chen -- 3/29/26 9:55
+Kalimul Kaif -- 3/26/26 00:06
+  Finalize design doc 1.0
+Robert Chen -- 3/29/26 9:55
   Made edits to design doc, corrected database organization, and properly formatted as tables. Added descriptions for non finance people, added teamflag.
-
 Cody Wong -- 3/30/26 11:23
   Added a Description to the markdown and reformated the markdown to make installation and understanding of our repo clear. 
-Robert chen -- 3/30/11:42
+Robert Chen -- 3/30/11:42
   updated design doc
 Zixi Qiao -- 3/30/26 11:45
   Set up initial project structure, created sqlite tables in build_db.py
@@ -33,3 +34,5 @@ Robert Chen -- 4/16/26 11:46
   Fixed error messages for login
 Cody Wong -- 4/16/26 11:46
   Revised a bit of the design document/working on the supply chain visualization 
+Kalimul Kaif -- 4/17/26 21:25
+  Add helper function to retrieve stock data given ticker and timerange params
