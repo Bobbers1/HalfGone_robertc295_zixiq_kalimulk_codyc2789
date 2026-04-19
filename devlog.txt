@@ -28,6 +28,10 @@ Zixi Qiao -- 4/15/26 21:20
   Updated explore to not route to dashboard when invalid ticker given, flashes error as well. Updated to use tailwind and chartjs locally from static folder instead of cdn link to avoid noscript blocking
 Zixi Qiao -- 4/15/26 22:55
   Updated explore and stock_viewer to add compare functionality between two stocks
+Cody Wong -- 4/19/26 14:00
+  Added supply chain page (TSM → NVDA → TSLA), analysis route with correlation heatmap data
+  Improved dashboard with multi-stock charts and quick stats
+  Added Supply Chain nav link to all pages, fixed yfinance fallback
 Zixi Qiao -- 4/16/26 11:43
   Fixed buggy requirements.txt, finally added dataset
 Robert Chen -- 4/16/26 11:46 
