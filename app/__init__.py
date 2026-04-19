@@ -5,19 +5,34 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, request, session, flash
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-import yfinance as yf
-from functools import wraps
-import pandas as pd
-import numpy as np
-import build_db
+
+# Try to import yfinance
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
+    print("Warning: yfinance not available")
+
+# Mock data fallback
+MOCK_DATA = {
+    "AAPL": [100, 105, 103, 110, 115, 120, 118, 125, 130, 128],
+    "MSFT": [100, 102, 105, 108, 110, 112, 115, 118, 120, 125],
+    "NVDA": [100, 110, 115, 125, 130, 140, 135, 150, 160, 170],
+}
+import urllib.request
+import json
+import csv
+import os
 
 app = Flask(__name__)
-app.secret_key = 'half_gone'
+app.secret_key = "half_gone"
 
-DATABASE = "data.db"
+DATABASE = "database.db"
+CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
+
 
 # -----------------------------
 # Database Helper Funcs
@@ -26,6 +41,7 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_db_connection()
@@ -39,7 +55,52 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 init_db()
+
+
+# Params:
+# ticker: stock id
+# limit: number of entries (eg. 30 = last 30 days)
+# Returns: list of dicts, each containing stock data on a certain day
+# DO NOT move this function definition, must happen after init_db()
+def get_stock_data_from_csv(ticker: str, limit: int = None) -> list[dict]:
+    ticker = ticker.upper()
+    results = []
+
+    with open(CSV_PATH, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["Ticker"].upper() == ticker:
+                for col in (
+                    "Open",
+                    "High",
+                    "Low",
+                    "Close",
+                    "Volume",
+                    "SMA_7",
+                    "SMA_21",
+                    "EMA_12",
+                    "EMA_26",
+                    "RSI_14",
+                    "MACD",
+                    "MACD_Signal",
+                    "Bollinger_Upper",
+                    "Bollinger_Lower",
+                    "Daily_Return",
+                    "Volatility_7d",
+                    "Next_Day_Close",
+                ):
+                    try:
+                        row[col] = float(row[col]) if row[col] else None
+                    except ValueError:
+                        row[col] = None
+                results.append(row)
+
+    results.sort(key=lambda r: r["Date"], reverse=True)
+
+    return results[:limit] if limit is not None else results
+
 
 # -----------------------------
 # Auth Routes
@@ -47,6 +108,7 @@ init_db()
 @app.route("/")
 def home():
     return redirect(url_for("login"))
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -60,7 +122,7 @@ def register():
             conn = get_db_connection()
             conn.execute(
                 "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, hashed_password)
+                (username, hashed_password),
             )
             conn.commit()
             conn.close()
@@ -72,6 +134,7 @@ def register():
             flash("Username already exists.", "danger")
 
     return render_template("register.html")
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -94,121 +157,61 @@ def login():
 
     return render_template("login.html")
 
+
 @app.route("/logout")
 def logout():
     session.clear()
     flash("Logged out successfully.", "info")
     return redirect(url_for("login"))
 
+
 def login_required(f):
+    from functools import wraps
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user" not in session:
             flash("Please log in first.", "warning")
             return redirect(url_for("login"))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 @app.route("/dashboard")
 @login_required
 def dashboard():
     return render_template("dashboard.html", user=session["user"])
 
-@app.route("/analysis", methods=["GET"])
-@login_required
-def analysis():
-    return render_template("analysis.html", user=session["user"])
- 
-@app.route("/analysis_data")
-@login_required
-def get_analysis_data():
-    try:
-        conn = get_db_connection()
-
-        query = """
-        SELECT 
-            sd.date as Date,
-            s.ticker as Ticker,
-            sd.close_price as Close,
-            sd.returns as Daily_Return
-        FROM stock_data sd
-        JOIN stocks s ON sd.stock_id = s.id
-        """
-
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-
-        df['Date'] = pd.to_datetime(df['Date'])
-
-        # Last 2 years
-        latest_date = df['Date'].max()
-        two_years_ago = latest_date - pd.Timedelta(days=730)
-        df_recent = df[df['Date'] >= two_years_ago].copy()
-
-        # Pivot returns
-        pivot_returns = df_recent.pivot(index='Date', columns='Ticker', values='Daily_Return')
-
-        # Correlation
-        corr_matrix = pivot_returns.corr()
-        tickers = corr_matrix.index.tolist()
-
-        correlation_data = []
-        for t1 in tickers:
-            for t2 in tickers:
-                correlation_data.append({
-                    'x': t1,
-                    'y': t2,
-                    'value': round(corr_matrix.loc[t1, t2], 3)
-                })
-
-        # Risk-adjusted metrics
-        risk_adjusted = []
-
-        for ticker in pivot_returns.columns:
-            returns = pivot_returns[ticker].dropna()
-
-            mean_return = returns.mean() * 252
-            volatility = returns.std() * np.sqrt(252)
-
-            sharpe_ratio = mean_return / volatility if volatility > 0 else 0
-
-            ticker_data = df_recent[df_recent['Ticker'] == ticker].sort_values('Date')
-
-            if len(ticker_data) > 0:
-                initial_price = ticker_data.iloc[0]['Close']
-                final_price = ticker_data.iloc[-1]['Close']
-                total_return = ((final_price / initial_price) - 1) * 100
-            else:
-                total_return = 0
-
-            risk_adjusted.append({
-                'ticker': ticker,
-                'sharpe_ratio': round(sharpe_ratio, 3),
-                'annual_return': round(mean_return * 100, 2),
-                'annual_volatility': round(volatility * 100, 2),
-                'total_return': round(total_return, 2)
-            })
-
-        risk_adjusted.sort(key=lambda x: x['sharpe_ratio'], reverse=True)
-
-        return jsonify({
-            'correlation': {
-                'tickers': tickers,
-                'data': correlation_data
-            },
-            'risk_adjusted': risk_adjusted
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route("/explore")
 @login_required
 def explore():
     return render_template("explore.html")
 
+
 # -----------------------------
-#Stock Route
+# Supply Chain Route (Stage 1 - basic)
+# -----------------------------
+@app.route("/supply-chain")
+@login_required
+def supply_chain():
+    """Simple supply chain view - TSM → NVDA → TSLA"""
+    stocks = [
+        {
+            "symbol": "TSM",
+            "name": "Taiwan Semiconductor",
+            "price": 107.89,
+            "change": 2.34,
+        },
+        {"symbol": "NVDA", "name": "NVIDIA", "price": 495.22, "change": 12.45},
+        {"symbol": "TSLA", "name": "Tesla", "price": 248.50, "change": -5.20},
+    ]
+    return render_template("supply_chain.html", stocks=stocks)
+
+
+# -----------------------------
+# Stock Route
 # -----------------------------
 @app.route("/stock")
 @login_required
@@ -219,33 +222,72 @@ def stock():
     if not ticker:
         return redirect(url_for("dashboard"))
 
-    try:
-        def fetch(t):
-            data = yf.Ticker(t)
-            hist = data.history(period="5y", interval="1d", auto_adjust=True, prepost=False)
-            if hist.empty:
-                raise ValueError(f"Invalid ticker or no data found for {t.upper()}.")
-            return hist
-
-        hist1 = fetch(ticker)
-
-        # Compare mode
-        if compare:
-            hist2 = fetch(compare)
-            common_dates = hist1.index.intersection(hist2.index)
-            hist1 = hist1.loc[common_dates]
-            hist2 = hist2.loc[common_dates]
-            dates = common_dates.strftime('%Y-%m-%d').tolist()
-            closes2 = hist2['Close'].round(2).tolist()
-            high2 = round(hist2['High'].max(), 2)
-            low2 = round(hist2['Low'].min(), 2)
-            avg_vol2 = f"{int(hist2['Volume'].mean()):,}"
-            latest2 = closes2[-1]
+        # Use mock data if yfinance not available
+        if yf is None:
+            closes1 = MOCK_DATA.get(
+                ticker.upper(), [100, 105, 110, 115, 120, 125, 130, 135, 140, 145]
+            )
+            dates = [
+                "2024-01",
+                "2024-02",
+                "2024-03",
+                "2024-04",
+                "2024-05",
+                "2024-06",
+                "2024-07",
+                "2024-08",
+                "2024-09",
+                "2024-10",
+            ]
+            closes2 = None
+            high = max(closes1)
+            low = min(closes1)
+            latest_price = closes1[-1]
+            avg_volume = "50,000,000"
+            high2 = low2 = avg_vol2 = latest2 = None
         else:
-            dates = hist1.index.strftime('%Y-%m-%d').tolist()
-            closes2 = high2 = low2 = avg_vol2 = latest2 = None
+            try:
 
-        closes1 = hist1['Close'].round(2).tolist()
+                def fetch(t):
+                    data = yf.Ticker(t)
+                    hist = data.history(
+                        period="5y", interval="1d", auto_adjust=True, prepost=False
+                    )
+                    if hist.empty:
+                        raise ValueError(
+                            f"Invalid ticker or no data found for {t.upper()}."
+                        )
+                    return hist
+
+                hist1 = fetch(ticker)
+
+                # Compare mode
+                if compare:
+                    hist2 = fetch(compare)
+                    common_dates = hist1.index.intersection(hist2.index)
+                    hist1 = hist1.loc[common_dates]
+                    hist2 = hist2.loc[common_dates]
+                    dates = common_dates.strftime("%Y-%m-%d").tolist()
+                    closes2 = hist2["Close"].round(2).tolist()
+                    high2 = round(hist2["High"].max(), 2)
+                    low2 = round(hist2["Low"].min(), 2)
+                    avg_vol2 = f"{int(hist2['Volume'].mean()):,}"
+                    latest2 = closes2[-1]
+                else:
+                    dates = hist1.index.strftime("%Y-%m-%d").tolist()
+                    closes2 = high2 = low2 = avg_vol2 = latest2 = None
+
+                closes1 = hist1["Close"].round(2).tolist()
+                high = round(hist1["High"].max(), 2)
+                low = round(hist1["Low"].min(), 2)
+                latest_price = closes1[-1]
+                avg_volume = f"{int(hist1['Volume'].mean()):,}"
+            except ValueError as e:
+                flash(str(e), "danger")
+                return redirect(url_for("explore"))
+            except Exception:
+                flash("Error fetching stock data.", "danger")
+                return redirect(url_for("explore"))
 
         return render_template(
             "stock_viewer.html",
@@ -254,26 +296,19 @@ def stock():
             dates=dates,
             closes1=closes1,
             closes2=closes2,
-            latest_price=closes1[-1],
+            latest_price=latest_price,
             latest2=latest2,
-            high=round(hist1['High'].max(), 2),
+            high=high,
             high2=high2,
-            low=round(hist1['Low'].min(), 2),
+            low=low,
             low2=low2,
-            avg_volume=f"{int(hist1['Volume'].mean()):,}",
+            avg_volume=avg_volume,
             avg_vol2=avg_vol2,
         )
 
-    except ValueError as e:
-        flash(str(e), "danger")
-        return redirect(url_for("explore"))
-    except Exception:
-        flash("Error fetching stock data.", "danger")
-        return redirect(url_for("explore"))
 
 # -----------------------------
 # Run App
 # -----------------------------
 if __name__ == "__main__":
-    build_db.main()
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5002)
