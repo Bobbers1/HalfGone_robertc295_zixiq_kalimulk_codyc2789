@@ -23,6 +23,7 @@
             <a href="/dashboard" class="mr-4">Dashboard</a>
             <a href="/analysis" class="mr-4">Analysis</a>
             <a href="/explore" class="mr-4">Explore</a>
+            <a href="/supply-chain" class="mr-4">Supply Chain</a>
             <a href="/logout" class="text-red-200">Logout</a>
         </div>
     </nav>
@@ -42,7 +43,7 @@
                 </p>
 
                 <div class="heatmap-container">
-                    <canvas id="correlationHeatmap" width="540" height="540"></canvas>
+                    <canvas id="correlationHeatmap" width="400" height="400"></canvas>
                 </div>
 
                 <div class="mt-4 text-sm text-gray-700 bg-blue-50 p-3 rounded">
@@ -108,8 +109,8 @@
             const ctx = document.getElementById('correlationHeatmap').getContext('2d');
             const tickers = correlationData.tickers || [];
 
-            const size = 480;           // square heatmap size
-            const padding = 70;         // space for labels
+            const size = 360;           // square heatmap size
+            const padding = 50;         // space for labels
             const canvas = ctx.canvas;
 
             canvas.width = size + padding;

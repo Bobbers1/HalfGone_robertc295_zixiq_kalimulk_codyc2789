@@ -5,7 +5,16 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask import (
+    Flask,
+    render_template,
+    redirect,
+    url_for,
+    request,
+    session,
+    flash,
+    jsonify,
+)
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -308,7 +317,51 @@ def stock():
 
 
 # -----------------------------
+# Analysis Route
+# -----------------------------
+@app.route("/analysis")
+@login_required
+def analysis():
+    return render_template("analysis.html")
+
+
+@app.route("/analysis_data")
+@login_required
+def analysis_data():
+    stocks = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA"]
+
+    # Generate correlation data
+    corr_data = []
+    for i, s1 in enumerate(stocks):
+        for j, s2 in enumerate(stocks):
+            if i == j:
+                corr_data.append({"x": s2, "y": s1, "value": 1.0})
+            else:
+                val = 0.3 + (hash(s1 + s2) % 70) / 100
+                corr_data.append({"x": s2, "y": s1, "value": round(val, 2)})
+
+    # Generate risk-adjusted data (mock Sharpe ratios)
+    risk_adjusted = []
+    for s in stocks:
+        risk_adjusted.append(
+            {
+                "ticker": s,
+                "sharpe_ratio": round(0.5 + (hash(s) % 150) / 100, 2),
+                "return": round(5 + (hash(s) % 30), 2),
+                "risk": round(10 + (hash(s + "x") % 20), 2),
+            }
+        )
+
+    return jsonify(
+        {
+            "correlation": {"data": corr_data, "tickers": stocks},
+            "risk_adjusted": risk_adjusted,
+        }
+    )
+
+
+# -----------------------------
 # Run App
 # -----------------------------
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5002)
+    app.run(debug=False, host="0.0.0.0", port=5003)
