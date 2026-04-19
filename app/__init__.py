@@ -5,41 +5,17 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import (
-    Flask,
-    render_template,
-    redirect,
-    url_for,
-    request,
-    session,
-    flash,
-    jsonify,
-)
+from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-
-# Try to import yfinance
-try:
-    import yfinance as yf
-except ImportError:
-    yf = None
-    print("Warning: yfinance not available")
-
-# Mock data fallback
-MOCK_DATA = {
-    "AAPL": [100, 105, 103, 110, 115, 120, 118, 125, 130, 128],
-    "MSFT": [100, 102, 105, 108, 110, 112, 115, 118, 120, 125],
-    "NVDA": [100, 110, 115, 125, 130, 140, 135, 150, 160, 170],
-}
-import urllib.request
-import json
-import csv
+import yfinance as yf
 import os
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "half_gone"
 
-DATABASE = "database.db"
+DATABASE = "data.db"
 CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
 
 
@@ -64,52 +40,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 init_db()
-
-
-# Params:
-# ticker: stock id
-# limit: number of entries (eg. 30 = last 30 days)
-# Returns: list of dicts, each containing stock data on a certain day
-# DO NOT move this function definition, must happen after init_db()
-def get_stock_data_from_csv(ticker: str, limit: int = None) -> list[dict]:
-    ticker = ticker.upper()
-    results = []
-
-    with open(CSV_PATH, newline="") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row["Ticker"].upper() == ticker:
-                for col in (
-                    "Open",
-                    "High",
-                    "Low",
-                    "Close",
-                    "Volume",
-                    "SMA_7",
-                    "SMA_21",
-                    "EMA_12",
-                    "EMA_26",
-                    "RSI_14",
-                    "MACD",
-                    "MACD_Signal",
-                    "Bollinger_Upper",
-                    "Bollinger_Lower",
-                    "Daily_Return",
-                    "Volatility_7d",
-                    "Next_Day_Close",
-                ):
-                    try:
-                        row[col] = float(row[col]) if row[col] else None
-                    except ValueError:
-                        row[col] = None
-                results.append(row)
-
-    results.sort(key=lambda r: r["Date"], reverse=True)
-
-    return results[:limit] if limit is not None else results
-
 
 # -----------------------------
 # Auth Routes
@@ -175,8 +106,6 @@ def logout():
 
 
 def login_required(f):
-    from functools import wraps
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user" not in session:
@@ -200,7 +129,7 @@ def explore():
 
 
 # -----------------------------
-# Supply Chain Route (Stage 1 - basic)
+# Supply Chain Route
 # -----------------------------
 @app.route("/supply-chain")
 @login_required
@@ -231,72 +160,33 @@ def stock():
     if not ticker:
         return redirect(url_for("dashboard"))
 
-        # Use mock data if yfinance not available
-        if yf is None:
-            closes1 = MOCK_DATA.get(
-                ticker.upper(), [100, 105, 110, 115, 120, 125, 130, 135, 140, 145]
-            )
-            dates = [
-                "2024-01",
-                "2024-02",
-                "2024-03",
-                "2024-04",
-                "2024-05",
-                "2024-06",
-                "2024-07",
-                "2024-08",
-                "2024-09",
-                "2024-10",
-            ]
-            closes2 = None
-            high = max(closes1)
-            low = min(closes1)
-            latest_price = closes1[-1]
-            avg_volume = "50,000,000"
-            high2 = low2 = avg_vol2 = latest2 = None
+    try:
+        def fetch(t):
+            data = yf.Ticker(t)
+            hist = data.history(period="5y", interval="1d", auto_adjust=True, prepost=False)
+            if hist.empty:
+                raise ValueError(f"Invalid ticker or no data found for {t.upper()}.")
+            return hist
+
+        hist1 = fetch(ticker)
+
+        # Compare mode
+        if compare:
+            hist2 = fetch(compare)
+            common_dates = hist1.index.intersection(hist2.index)
+            hist1 = hist1.loc[common_dates]
+            hist2 = hist2.loc[common_dates]
+            dates = common_dates.strftime('%Y-%m-%d').tolist()
+            closes2 = hist2['Close'].round(2).tolist()
+            high2 = round(hist2['High'].max(), 2)
+            low2 = round(hist2['Low'].min(), 2)
+            avg_vol2 = f"{int(hist2['Volume'].mean()):,}"
+            latest2 = closes2[-1]
         else:
-            try:
+            dates = hist1.index.strftime('%Y-%m-%d').tolist()
+            closes2 = high2 = low2 = avg_vol2 = latest2 = None
 
-                def fetch(t):
-                    data = yf.Ticker(t)
-                    hist = data.history(
-                        period="5y", interval="1d", auto_adjust=True, prepost=False
-                    )
-                    if hist.empty:
-                        raise ValueError(
-                            f"Invalid ticker or no data found for {t.upper()}."
-                        )
-                    return hist
-
-                hist1 = fetch(ticker)
-
-                # Compare mode
-                if compare:
-                    hist2 = fetch(compare)
-                    common_dates = hist1.index.intersection(hist2.index)
-                    hist1 = hist1.loc[common_dates]
-                    hist2 = hist2.loc[common_dates]
-                    dates = common_dates.strftime("%Y-%m-%d").tolist()
-                    closes2 = hist2["Close"].round(2).tolist()
-                    high2 = round(hist2["High"].max(), 2)
-                    low2 = round(hist2["Low"].min(), 2)
-                    avg_vol2 = f"{int(hist2['Volume'].mean()):,}"
-                    latest2 = closes2[-1]
-                else:
-                    dates = hist1.index.strftime("%Y-%m-%d").tolist()
-                    closes2 = high2 = low2 = avg_vol2 = latest2 = None
-
-                closes1 = hist1["Close"].round(2).tolist()
-                high = round(hist1["High"].max(), 2)
-                low = round(hist1["Low"].min(), 2)
-                latest_price = closes1[-1]
-                avg_volume = f"{int(hist1['Volume'].mean()):,}"
-            except ValueError as e:
-                flash(str(e), "danger")
-                return redirect(url_for("explore"))
-            except Exception:
-                flash("Error fetching stock data.", "danger")
-                return redirect(url_for("explore"))
+        closes1 = hist1['Close'].round(2).tolist()
 
         return render_template(
             "stock_viewer.html",
@@ -305,15 +195,22 @@ def stock():
             dates=dates,
             closes1=closes1,
             closes2=closes2,
-            latest_price=latest_price,
+            latest_price=closes1[-1],
             latest2=latest2,
-            high=high,
+            high=round(hist1['High'].max(), 2),
             high2=high2,
-            low=low,
+            low=round(hist1['Low'].min(), 2),
             low2=low2,
-            avg_volume=avg_volume,
+            avg_volume=f"{int(hist1['Volume'].mean()):,}",
             avg_vol2=avg_vol2,
         )
+
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("explore"))
+    except Exception:
+        flash("Error fetching stock data.", "danger")
+        return redirect(url_for("explore"))
 
 
 # -----------------------------
@@ -364,4 +261,4 @@ def analysis_data():
 # Run App
 # -----------------------------
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5003)
+    app.run(debug=False, host="0.0.0.0", port=5000)
