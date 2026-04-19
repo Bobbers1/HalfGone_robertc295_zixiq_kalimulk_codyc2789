@@ -40,3 +40,5 @@ Cody Wong -- 4/16/26 11:46
   Revised a bit of the design document/working on the supply chain visualization 
 Kalimul Kaif -- 4/17/26 21:25
   Add helper function to retrieve stock data given ticker and timerange params
+Cody Wong -- 4/19/26 1:28
+  Implemented Supply Chain Visualization with convulition matrix. 
