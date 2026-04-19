@@ -5,19 +5,19 @@
 # 2026-04-20
 # time spent: 1
 
-from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask import Flask, render_template, redirect, url_for, request, session, flash, jsonify
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import yfinance as yf
-import urllib.request
-import json
-import csv
-import os
+from functools import wraps
+import pandas as pd
+import numpy as np
+import build_db
 
 app = Flask(__name__)
 app.secret_key = 'half_gone'
 
-DATABASE = "database.db"
+DATABASE = "data.db"
 
 # -----------------------------
 # Database Helper Funcs
@@ -101,7 +101,6 @@ def logout():
     return redirect(url_for("login"))
 
 def login_required(f):
-    from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "user" not in session:
@@ -114,6 +113,94 @@ def login_required(f):
 @login_required
 def dashboard():
     return render_template("dashboard.html", user=session["user"])
+
+@app.route("/analysis", methods=["GET"])
+@login_required
+def analysis():
+    return render_template("analysis.html", user=session["user"])
+ 
+@app.route("/analysis_data")
+@login_required
+def get_analysis_data():
+    try:
+        conn = get_db_connection()
+
+        query = """
+        SELECT 
+            sd.date as Date,
+            s.ticker as Ticker,
+            sd.close_price as Close,
+            sd.returns as Daily_Return
+        FROM stock_data sd
+        JOIN stocks s ON sd.stock_id = s.id
+        """
+
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+
+        df['Date'] = pd.to_datetime(df['Date'])
+
+        # Last 2 years
+        latest_date = df['Date'].max()
+        two_years_ago = latest_date - pd.Timedelta(days=730)
+        df_recent = df[df['Date'] >= two_years_ago].copy()
+
+        # Pivot returns
+        pivot_returns = df_recent.pivot(index='Date', columns='Ticker', values='Daily_Return')
+
+        # Correlation
+        corr_matrix = pivot_returns.corr()
+        tickers = corr_matrix.index.tolist()
+
+        correlation_data = []
+        for t1 in tickers:
+            for t2 in tickers:
+                correlation_data.append({
+                    'x': t1,
+                    'y': t2,
+                    'value': round(corr_matrix.loc[t1, t2], 3)
+                })
+
+        # Risk-adjusted metrics
+        risk_adjusted = []
+
+        for ticker in pivot_returns.columns:
+            returns = pivot_returns[ticker].dropna()
+
+            mean_return = returns.mean() * 252
+            volatility = returns.std() * np.sqrt(252)
+
+            sharpe_ratio = mean_return / volatility if volatility > 0 else 0
+
+            ticker_data = df_recent[df_recent['Ticker'] == ticker].sort_values('Date')
+
+            if len(ticker_data) > 0:
+                initial_price = ticker_data.iloc[0]['Close']
+                final_price = ticker_data.iloc[-1]['Close']
+                total_return = ((final_price / initial_price) - 1) * 100
+            else:
+                total_return = 0
+
+            risk_adjusted.append({
+                'ticker': ticker,
+                'sharpe_ratio': round(sharpe_ratio, 3),
+                'annual_return': round(mean_return * 100, 2),
+                'annual_volatility': round(volatility * 100, 2),
+                'total_return': round(total_return, 2)
+            })
+
+        risk_adjusted.sort(key=lambda x: x['sharpe_ratio'], reverse=True)
+
+        return jsonify({
+            'correlation': {
+                'tickers': tickers,
+                'data': correlation_data
+            },
+            'risk_adjusted': risk_adjusted
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/explore")
 @login_required
@@ -188,4 +275,5 @@ def stock():
 # Run App
 # -----------------------------
 if __name__ == "__main__":
+    build_db.main()
     app.run(debug=False, host='0.0.0.0', port=5000)

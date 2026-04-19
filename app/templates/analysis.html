@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis - FAANG+ Stock Explorer</title>
+    <link href="{{ url_for('static', filename='tailwind.min.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+
+    <style>
+        .heatmap-container {
+            position: relative;
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+
+    <nav class="bg-blue-600 text-white p-4 flex justify-between">
+        <h1 class="text-xl font-bold">FAANG+ Explorer</h1>
+        <div>
+            <a href="/dashboard" class="mr-4">Dashboard</a>
+            <a href="/analysis" class="mr-4">Analysis</a>
+            <a href="/explore" class="mr-4">Explore</a>
+            <a href="/logout" class="text-red-200">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-8">
+
+        <h2 class="text-2xl font-bold mb-2">Advanced Analysis on FAANG Stocks</h2>
+        <p class="text-gray-600 mb-6">Based on 2 years of historical data</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+            <!-- CORRELATION HEATMAP -->
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-lg font-semibold mb-4">Correlation Matrix</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Shows how stocks move together (1.0 = perfect correlation)
+                </p>
+
+                <div class="heatmap-container">
+                    <canvas id="correlationHeatmap" width="540" height="540"></canvas>
+                </div>
+
+                <div class="mt-4 text-sm text-gray-700 bg-blue-50 p-3 rounded">
+                    Higher correlation = stocks move together. Lower correlation = better diversification.
+                </div>
+            </div>
+
+            <!-- SHARPE RATIO -->
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="text-lg font-semibold mb-4">Risk-Adjusted Returns (Sharpe Ratio)</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Higher Sharpe = better return per unit of risk
+                </p>
+
+                <canvas id="sharpeChart" height="300"></canvas>
+
+                <div class="mt-4 text-sm text-gray-700 bg-green-50 p-3 rounded">
+                    Sharpe Ratio = (Annual Return) / (Annual Volatility)<br>
+                    Rule of Thumb: > 1.0 is good, > 2.0 is excellent
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const stockColors = {
+            'AAPL': 'rgb(169, 169, 169)',
+            'AMZN': 'rgb(255, 153, 0)',
+            'GOOGL': 'rgb(66, 133, 244)',
+            'META': 'rgb(24, 119, 242)',
+            'MSFT': 'rgb(0, 120, 212)',
+            'NVDA': 'rgb(118, 185, 0)'
+        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch('/analysis_data')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error("Backend error:", data.error);
+                        return;
+                    }
+                    renderCorrelationHeatmap(data.correlation);
+                    renderSharpeChart(data.risk_adjusted);
+                })
+                .catch(err => console.error("Fetch failed:", err));
+        });
+
+        function getColor(value) {
+            if (value >= 0) {
+                // Positive correlation = red intensity
+                const intensity = Math.floor(value * 220);
+                return `rgb(255, ${255 - intensity}, ${255 - intensity})`;
+            } else {
+                // Negative correlation = blue intensity
+                const intensity = Math.floor(Math.abs(value) * 220);
+                return `rgb(${255 - intensity}, ${255 - intensity}, 255)`;
+            }
+        }
+
+        function renderCorrelationHeatmap(correlationData) {
+            const ctx = document.getElementById('correlationHeatmap').getContext('2d');
+            const tickers = correlationData.tickers || [];
+
+            const size = 480;           // square heatmap size
+            const padding = 70;         // space for labels
+            const canvas = ctx.canvas;
+
+            canvas.width = size + padding;
+            canvas.height = size + padding;
+
+            const cellSize = size / tickers.length;
+
+            // Draw the matrix
+            correlationData.data.forEach(point => {
+                const x = tickers.indexOf(point.x);
+                const y = tickers.indexOf(point.y);
+
+                ctx.fillStyle = getColor(point.value);
+                ctx.fillRect(
+                    x * cellSize + padding,
+                    y * cellSize + padding,
+                    cellSize, cellSize
+                );
+
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(
+                    x * cellSize + padding,
+                    y * cellSize + padding,
+                    cellSize, cellSize
+                );
+
+                // Show correlation value
+                ctx.fillStyle = Math.abs(point.value) > 0.5 ? "#fff" : "#111";
+                ctx.font = "11px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(
+                    point.value.toFixed(2),
+                    x * cellSize + cellSize/2 + padding,
+                    y * cellSize + cellSize/2 + padding
+                );
+            });
+
+            // Draw labels
+            ctx.fillStyle = "#1f2937";
+            ctx.font = "bold 13px Arial";
+
+            tickers.forEach((ticker, i) => {
+                const pos = i * cellSize + cellSize / 2 + padding;
+
+                // Left labels (Y-axis)
+                ctx.textAlign = "right";
+                ctx.textBaseline = "middle";
+                ctx.fillText(ticker, padding - 10, pos);
+
+                // Top labels (X-axis)
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+                ctx.fillText(ticker, pos, padding - 8);
+            });
+        }
+
+        function renderSharpeChart(riskAdjustedData) {
+            const ctx = document.getElementById('sharpeChart').getContext('2d');
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: riskAdjustedData.map(d => d.ticker),
+                    datasets: [{
+                        label: 'Sharpe Ratio',
+                        data: riskAdjustedData.map(d => d.sharpe_ratio),
+                        backgroundColor: riskAdjustedData.map(d => 
+                            stockColors[d.ticker] || 'rgb(75, 192, 192)'
+                        ),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Sharpe Ratio' }},
+                        x: { grid: { display: false }}
+                    }
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
