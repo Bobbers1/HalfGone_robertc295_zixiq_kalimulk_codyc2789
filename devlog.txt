@@ -40,5 +40,9 @@ Cody Wong -- 4/16/26 11:46
   Revised a bit of the design document/working on the supply chain visualization 
 Kalimul Kaif -- 4/17/26 21:25
   Add helper function to retrieve stock data given ticker and timerange params
+Zixi Qiao -- 4/18/26 15:00
+  Add analysis route with two new graphs: correlation matrix and risk-adjusted returns (sharpe ratio)
 Cody Wong -- 4/19/26 1:28
-  Implemented Supply Chain Visualization with convulition matrix. 
+  Implemented Supply Chain Visualization
+Zixi Qiao -- 4/19/26 11:00
+  Update design doc and fix small bug breaking stock route
