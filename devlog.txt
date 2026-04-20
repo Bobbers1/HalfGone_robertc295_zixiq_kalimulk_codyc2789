@@ -46,3 +46,5 @@ Cody Wong -- 4/19/26 1:28
   Implemented Supply Chain Visualization
 Zixi Qiao -- 4/19/26 11:00
   Update design doc and fix small bug breaking stock route
+Zixi Qiao -- 4/20/26 11:46
+  Fix analysis charts
