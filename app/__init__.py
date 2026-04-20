@@ -11,6 +11,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import yfinance as yf
 import os
 from functools import wraps
+import pandas as pd
+import numpy as np
+import build_db
 
 app = Flask(__name__)
 app.secret_key = "half_gone"
@@ -213,52 +216,98 @@ def stock():
         return redirect(url_for("explore"))
 
 
-# -----------------------------
-# Analysis Route
-# -----------------------------
-@app.route("/analysis")
+@app.route("/analysis", methods=["GET"])
 @login_required
 def analysis():
-    return render_template("analysis.html")
-
+    return render_template("analysis.html", user=session["user"])
 
 @app.route("/analysis_data")
 @login_required
-def analysis_data():
-    stocks = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA"]
+def get_analysis_data():
+    try:
+        conn = get_db_connection()
 
-    # Generate correlation data
-    corr_data = []
-    for i, s1 in enumerate(stocks):
-        for j, s2 in enumerate(stocks):
-            if i == j:
-                corr_data.append({"x": s2, "y": s1, "value": 1.0})
+        query = """
+        SELECT
+            sd.date as Date,
+            s.ticker as Ticker,
+            sd.close_price as Close,
+            sd.returns as Daily_Return
+        FROM stock_data sd
+        JOIN stocks s ON sd.stock_id = s.id
+        """
+
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+
+        df['Date'] = pd.to_datetime(df['Date'])
+
+        # Last 2 years
+        latest_date = df['Date'].max()
+        two_years_ago = latest_date - pd.Timedelta(days=730)
+        df_recent = df[df['Date'] >= two_years_ago].copy()
+
+        # Pivot returns
+        pivot_returns = df_recent.pivot(index='Date', columns='Ticker', values='Daily_Return')
+
+        # Correlation
+        corr_matrix = pivot_returns.corr()
+        tickers = corr_matrix.index.tolist()
+
+        correlation_data = []
+        for t1 in tickers:
+            for t2 in tickers:
+                correlation_data.append({
+                    'x': t1,
+                    'y': t2,
+                    'value': round(corr_matrix.loc[t1, t2], 3)
+                })
+
+        # Risk-adjusted metrics
+        risk_adjusted = []
+
+        for ticker in pivot_returns.columns:
+            returns = pivot_returns[ticker].dropna()
+
+            mean_return = returns.mean() * 252
+            volatility = returns.std() * np.sqrt(252)
+
+            sharpe_ratio = mean_return / volatility if volatility > 0 else 0
+
+            ticker_data = df_recent[df_recent['Ticker'] == ticker].sort_values('Date')
+
+            if len(ticker_data) > 0:
+                initial_price = ticker_data.iloc[0]['Close']
+                final_price = ticker_data.iloc[-1]['Close']
+                total_return = ((final_price / initial_price) - 1) * 100
             else:
-                val = 0.3 + (hash(s1 + s2) % 70) / 100
-                corr_data.append({"x": s2, "y": s1, "value": round(val, 2)})
+                total_return = 0
 
-    # Generate risk-adjusted data (mock Sharpe ratios)
-    risk_adjusted = []
-    for s in stocks:
-        risk_adjusted.append(
-            {
-                "ticker": s,
-                "sharpe_ratio": round(0.5 + (hash(s) % 150) / 100, 2),
-                "return": round(5 + (hash(s) % 30), 2),
-                "risk": round(10 + (hash(s + "x") % 20), 2),
-            }
-        )
+            risk_adjusted.append({
+                'ticker': ticker,
+                'sharpe_ratio': round(sharpe_ratio, 3),
+                'annual_return': round(mean_return * 100, 2),
+                'annual_volatility': round(volatility * 100, 2),
+                'total_return': round(total_return, 2)
+            })
 
-    return jsonify(
-        {
-            "correlation": {"data": corr_data, "tickers": stocks},
-            "risk_adjusted": risk_adjusted,
-        }
-    )
+        risk_adjusted.sort(key=lambda x: x['sharpe_ratio'], reverse=True)
+
+        return jsonify({
+            'correlation': {
+                'tickers': tickers,
+                'data': correlation_data
+            },
+            'risk_adjusted': risk_adjusted
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # -----------------------------
 # Run App
 # -----------------------------
 if __name__ == "__main__":
+    build_db.main()
     app.run(debug=False, host="0.0.0.0", port=5000)
