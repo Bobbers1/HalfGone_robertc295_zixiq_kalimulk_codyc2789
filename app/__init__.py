@@ -13,12 +13,12 @@ import os
 from functools import wraps
 import pandas as pd
 import numpy as np
-from app import build_db
+import build_db
 
 app = Flask(__name__)
 app.secret_key = "half_gone"
 
-DATABASE = "data.db"
+DATABASE = os.path.join(os.path.dirname(__file__), "..", "data.db")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
 
 
@@ -309,6 +309,7 @@ def get_analysis_data():
 # -----------------------------
 # Run App
 # -----------------------------
+build_db.main()
+
 if __name__ == "__main__":
-    build_db.main()
     app.run(debug=False, host="0.0.0.0", port=5000)
