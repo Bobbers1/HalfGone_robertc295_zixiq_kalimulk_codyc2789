@@ -13,7 +13,7 @@ from flask import (
     request,
     session,
     flash,
-    jsonify,
+    jsonify
 )
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -70,12 +70,6 @@ def init_db():
 
 init_db()
 build_db.main()
-
-
-def load_dataset_frame():
-    df = pd.read_csv(CSV_PATH)
-    df["Date"] = pd.to_datetime(df["Date"])
-    return df.sort_values(["Ticker", "Date"])
 
 
 def get_dataset_history(ticker):
@@ -214,19 +208,34 @@ def get_supply_chain_context():
 
 
 def get_dashboard_context():
-    df = load_dataset_frame()
-    tickers = sorted(df["Ticker"].str.upper().unique().tolist())
+    conn = get_db_connection()
+    query = """
+        SELECT
+            sd.date AS Date,
+            s.ticker AS Ticker,
+            sd.close_price AS Close,
+            sd.volume AS Volume,
+            sd.returns AS Daily_Return
+        FROM stock_data sd
+        JOIN stocks s ON sd.stock_id = s.id
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+
+    df["Date"] = pd.to_datetime(df["Date"])
+    df["Ticker"] = df["Ticker"].str.upper()
+
+    tickers = sorted(df["Ticker"].unique().tolist())
     latest_date = df["Date"].max()
     recent = df[df["Date"] >= (latest_date - pd.Timedelta(days=365))].copy()
-    tracked_tickers = [ticker for ticker in ["AAPL", "AMZN", "GOOGL", "META", "MSFT", "NVDA"] if ticker in tickers]
 
     growth_labels = []
     growth_series = []
     volume_labels = []
     volume_series = []
 
-    for ticker in tracked_tickers:
-        ticker_df = recent[recent["Ticker"].str.upper() == ticker].sort_values("Date")
+    for ticker in tickers:
+        ticker_df = recent[recent["Ticker"] == ticker].sort_values("Date")
         monthly = ticker_df.set_index("Date")["Close"].resample("ME").last().dropna()
         if monthly.empty:
             continue
