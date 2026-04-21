@@ -185,7 +185,7 @@ def get_supply_chain_context():
             }
         )
 
-        recent_hist = hist.sort_index()
+        recent_hist = hist.sort_index().tail(325).head(180)
         closes = recent_hist["Close"].dropna()
         if closes.empty:
             raise ValueError(f"Missing recent close price data for {ticker}.")
