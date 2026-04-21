@@ -48,5 +48,7 @@ Zixi Qiao -- 4/19/26 11:00
   Update design doc and fix small bug breaking stock route
 Zixi Qiao -- 4/20/26 11:46
   Fix analysis charts
-Robert chen -- 4/20/26 8:43
+Robert chen -- 4/20/26 20:43
   updated design doc
+Zixi Qiao -- 4/20/26 22:30
+  Added explanations to analysis route
