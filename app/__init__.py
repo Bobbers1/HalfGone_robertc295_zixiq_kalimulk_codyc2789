@@ -157,18 +157,6 @@ def get_market_snapshot(ticker):
         "source": source,
     }
 
-
-def get_live_stock_history(ticker):
-    if yf is None:
-        raise ValueError("Live market data is unavailable because yfinance is not installed correctly.")
-
-    data = yf.Ticker(ticker.upper())
-    hist = data.history(period="6mo", interval="1d", auto_adjust=True, prepost=False)
-    if hist.empty:
-        raise ValueError(f"Live market data is unavailable for {ticker.upper()}.")
-    return hist.sort_index()
-
-
 def get_supply_chain_context():
     tickers = ["TSM", "NVDA", "TSLA"]
     colors = {"TSM": "rgb(59, 130, 246)", "NVDA": "rgb(132, 204, 22)", "TSLA": "rgb(239, 68, 68)"}
@@ -176,7 +164,7 @@ def get_supply_chain_context():
     stock_charts = []
 
     for ticker in tickers:
-        hist = get_live_stock_history(ticker)
+        hist = get_stock_history(ticker)[0]
         source = "yfinance"
 
         close_series = hist["Close"].dropna()
@@ -197,7 +185,7 @@ def get_supply_chain_context():
             }
         )
 
-        recent_hist = hist.sort_index().tail(180)
+        recent_hist = hist.sort_index()
         closes = recent_hist["Close"].dropna()
         if closes.empty:
             raise ValueError(f"Missing recent close price data for {ticker}.")
@@ -206,7 +194,7 @@ def get_supply_chain_context():
         if volume_series.empty:
             raise ValueError(f"Missing volume data for {ticker}.")
 
-        labels = recent_hist.index.strftime("%b %d").tolist()
+        labels = recent_hist.index.strftime("%Y-%m-%d").tolist()
         stock_charts.append(
             {
                 "ticker": ticker,
