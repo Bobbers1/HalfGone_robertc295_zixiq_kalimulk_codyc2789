@@ -13,7 +13,7 @@ import os
 from functools import wraps
 import pandas as pd
 import numpy as np
-import build_db
+from app import build_db
 
 app = Flask(__name__)
 app.secret_key = "half_gone"
