@@ -56,3 +56,7 @@ Kalimul Kaif -- 4/20/26 23:00
   Debug file path issue with data.db that was causing graphs to not render properly on livesite
 Kalimul Kaif -- 4/21/26 00:05
   Remove .db files from git tracking, add .gitignore
+Zixi Qiao -- 4/21/26 11:45
+  Updated supply_chain charts to zoom in on a specific time period
+Zixi Qiao -- 4/21/26 18:00
+  Updated getting dashboard data through stock_data db
