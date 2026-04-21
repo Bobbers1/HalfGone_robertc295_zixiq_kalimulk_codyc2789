@@ -34,10 +34,10 @@
                 <canvas id="growthChart"></canvas>
             </div>
 
-            <!-- Risk vs Return -->
+            <!-- Trading Volume -->
             <div class="bg-white p-4 border">
-                <h3 class="text-lg font-semibold mb-4">Risk vs Return</h3>
-                <canvas id="riskChart"></canvas>
+                <h3 class="text-lg font-semibold mb-4">Monthly Trading Volume</h3>
+                <canvas id="volumeChart"></canvas>
             </div>
         </div>
         
@@ -61,7 +61,14 @@
     </div>
 
     <script>
-        const growthColors = ['rgb(169, 169, 169)', 'rgb(118, 185, 0)', 'rgb(0, 120, 212)', 'rgb(66, 133, 244)'];
+        const growthColors = [
+            'rgb(156, 163, 175)',
+            'rgb(245, 158, 11)',
+            'rgb(66, 133, 244)',
+            'rgb(16, 185, 129)',
+            'rgb(139, 92, 246)',
+            'rgb(118, 185, 0)'
+        ];
         const ctxGrowth = document.getElementById('growthChart').getContext('2d');
         const growthChart = new Chart(ctxGrowth, {
             type: 'line',
@@ -72,31 +79,30 @@
             options: { responsive: true }
         });
 
-        const ctxRisk = document.getElementById('riskChart').getContext('2d');
-        const riskChart = new Chart(ctxRisk, {
-            type: 'scatter',
+        const ctxVolume = document.getElementById('volumeChart').getContext('2d');
+        const volumeChart = new Chart(ctxVolume, {
+            type: 'line',
             data: {
-                datasets: [{
-                    label: 'Stocks',
-                    data: [],
-                    backgroundColor: []
-                }]
+                labels: [],
+                datasets: []
             },
             options: {
                 responsive: true,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => {
-                                const point = ctx.raw;
-                                return `${point.t}: ${point.y}% return, ${point.x}% volatility`;
-                            }
+                scales: {
+                    y: {
+                        title: { display: true, text: 'Average Monthly Volume' },
+                        ticks: {
+                            callback: value => Intl.NumberFormat('en-US', {
+                                notation: 'compact',
+                                maximumFractionDigits: 1
+                            }).format(value)
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 12
                         }
                     }
-                },
-                scales: {
-                    x: { title: { display: true, text: 'Annualized Volatility (%)' } },
-                    y: { title: { display: true, text: 'Annualized Return (%)' } }
                 }
             }
         });
@@ -128,9 +134,14 @@
                 }));
                 growthChart.update();
 
-                riskChart.data.datasets[0].data = data.risk_points;
-                riskChart.data.datasets[0].backgroundColor = data.risk_points.map((_, index) => growthColors[index % growthColors.length]);
-                riskChart.update();
+                volumeChart.data.labels = data.volume_labels;
+                volumeChart.data.datasets = data.volume_series.map((series, index) => ({
+                    label: series.label,
+                    data: series.data,
+                    borderColor: growthColors[index % growthColors.length],
+                    tension: 0.15
+                }));
+                volumeChart.update();
             })
             .catch(error => {
                 console.error('Failed to load dashboard data:', error);

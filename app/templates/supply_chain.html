@@ -3,6 +3,7 @@
 <head>
     <title>Supply Chain - FAANG+ Explorer</title>
     <link href="{{ url_for('static', filename='tailwind.min.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
 </head>
 <body class="bg-gray-50">
     <nav class="bg-blue-600 text-white p-4 flex justify-between">
@@ -20,29 +21,27 @@
         <h2 class="text-2xl font-bold mb-6">Supply Chain: Tech Sector</h2>
 
         <!-- Stock boxes -->
-        <div class="flex items-center gap-4 mb-8">
-            {% for stock in stocks %}
+        <div id="supplyChainCards" class="flex items-center gap-4 mb-8">
             <div class="bg-white p-4 border">
-                <p class="font-bold">{{ stock.symbol }}</p>
-                {% if stock.price is not none %}
-                <p class="text-xl">${{ '%.2f'|format(stock.price) }}</p>
-                {% else %}
-                <p class="text-xl text-gray-500">Unavailable</p>
-                {% endif %}
-                {% if stock.change is not none %}
-                <p class="{% if stock.change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                    {% if stock.change >= 0 %}+{% endif %}{{ '%.2f'|format(stock.change) }}
-                </p>
-                {% else %}
-                <p class="text-gray-500">Change unavailable</p>
-                {% endif %}
-                <p class="text-sm text-gray-600">{{ stock.name }}</p>
-                <p class="text-xs text-gray-400 uppercase tracking-wide">{{ stock.source }}</p>
+                <p class="font-bold">Loading...</p>
+                <p class="text-gray-500">Fetching supply chain data</p>
             </div>
-            {% if not loop.last %}
             <span class="text-2xl">-></span>
-            {% endif %}
-            {% endfor %}
+            <div class="bg-white p-4 border">
+                <p class="font-bold">Loading...</p>
+                <p class="text-gray-500">Fetching supply chain data</p>
+            </div>
+            <span class="text-2xl">-></span>
+            <div class="bg-white p-4 border">
+                <p class="font-bold">Loading...</p>
+                <p class="text-gray-500">Fetching supply chain data</p>
+            </div>
+        </div>
+
+        <div id="stockChartGrid" class="grid grid-cols-1 gap-6 mb-8">
+            <div class="bg-white p-4 border text-gray-500">
+                Building live comparison charts...
+            </div>
         </div>
 
         <!-- Info -->
@@ -61,5 +60,144 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function renderCards(stocks) {
+            const cards = stocks.map((stock, index) => `
+                <div class="bg-white p-4 border">
+                    <p class="font-bold">${stock.symbol}</p>
+                    <p class="text-xl ${stock.price === null ? 'text-gray-500' : ''}">
+                        ${stock.price === null ? 'Unavailable' : '$' + stock.price.toFixed(2)}
+                    </p>
+                    <p class="${stock.change === null ? 'text-gray-500' : stock.change >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${stock.change === null ? 'Change unavailable' : `${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}`}
+                    </p>
+                    <p class="text-sm text-gray-600">${stock.name}</p>
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">live via ${stock.source}</p>
+                </div>
+                ${index < stocks.length - 1 ? '<span class="text-2xl">-></span>' : ''}
+            `).join('');
+
+            document.getElementById('supplyChainCards').innerHTML = cards;
+        }
+
+        function renderStockCharts(stockCharts) {
+            const container = document.getElementById('stockChartGrid');
+            container.innerHTML = stockCharts.map(stock => `
+                <section class="bg-white p-4 border">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold">${stock.ticker}</h3>
+                            <p class="text-sm text-gray-500">${stock.name} · live via ${stock.source}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold mb-3">Price Trend</h4>
+                            <canvas id="priceChart-${stock.ticker}"></canvas>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-3">Volume Trend</h4>
+                            <canvas id="volumeChart-${stock.ticker}"></canvas>
+                        </div>
+                    </div>
+                </section>
+            `).join('');
+
+            stockCharts.forEach(stock => {
+                new Chart(document.getElementById(`priceChart-${stock.ticker}`).getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: stock.labels,
+                        datasets: [{
+                            label: `${stock.ticker} Price`,
+                            data: stock.price_data,
+                            borderColor: stock.color,
+                            backgroundColor: stock.color,
+                            tension: 0.2,
+                            pointRadius: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: value => '$' + value
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxTicksLimit: 8
+                                }
+                            }
+                        }
+                    }
+                });
+
+                new Chart(document.getElementById(`volumeChart-${stock.ticker}`).getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: stock.labels,
+                        datasets: [{
+                            label: `${stock.ticker} Volume`,
+                            data: stock.volume_data,
+                            backgroundColor: stock.color
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                ticks: {
+                                    callback: value => Intl.NumberFormat('en-US', {
+                                        notation: 'compact',
+                                        maximumFractionDigits: 1
+                                    }).format(value)
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxTicksLimit: 8
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => Intl.NumberFormat('en-US').format(ctx.raw)
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        fetch('{{ url_for("get_supply_chain_data") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderCards(data.stocks);
+                renderStockCharts(data.stock_charts);
+            })
+            .catch(error => {
+                console.error('Failed to load supply chain data:', error);
+                document.getElementById('supplyChainCards').innerHTML = `
+                    <div class="bg-white p-4 border text-gray-500">
+                        Live yfinance supply chain data is unavailable right now.
+                    </div>
+                `;
+                document.getElementById('stockChartGrid').innerHTML = `
+                    <div class="bg-white p-4 border text-gray-500">
+                        The per-stock live comparison charts could not be loaded.
+                    </div>
+                `;
+            });
+    </script>
 </body>
 </html>

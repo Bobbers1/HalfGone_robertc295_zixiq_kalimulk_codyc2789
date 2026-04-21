@@ -26,9 +26,8 @@ import numpy as np
 # Try to import yfinance
 try:
     import yfinance as yf
-except Exception as exc:
+except Exception:
     yf = None
-    print(f"Warning: yfinance unavailable: {exc}")
 import build_db
 
 app = Flask(__name__)
@@ -41,6 +40,10 @@ SUPPLY_CHAIN_COMPANIES = {
     "NVDA": "NVIDIA",
     "TSLA": "Tesla",
 }
+
+
+def get_server_port():
+    return int(os.environ.get("PORT", "5001"))
 
 
 # -----------------------------
@@ -155,17 +158,86 @@ def get_market_snapshot(ticker):
     }
 
 
+def get_live_stock_history(ticker):
+    if yf is None:
+        raise ValueError("Live market data is unavailable because yfinance is not installed correctly.")
+
+    data = yf.Ticker(ticker.upper())
+    hist = data.history(period="6mo", interval="1d", auto_adjust=True, prepost=False)
+    if hist.empty:
+        raise ValueError(f"Live market data is unavailable for {ticker.upper()}.")
+    return hist.sort_index()
+
+
+def get_supply_chain_context():
+    tickers = ["TSM", "NVDA", "TSLA"]
+    colors = {"TSM": "rgb(59, 130, 246)", "NVDA": "rgb(132, 204, 22)", "TSLA": "rgb(239, 68, 68)"}
+    stocks = []
+    stock_charts = []
+
+    for ticker in tickers:
+        hist = get_live_stock_history(ticker)
+        source = "yfinance"
+
+        close_series = hist["Close"].dropna()
+        if close_series.empty:
+            raise ValueError(f"Missing close price data for {ticker}.")
+
+        latest_close = round(float(close_series.iloc[-1]), 2)
+        prev_close = float(close_series.iloc[-2]) if len(close_series) >= 2 else None
+        change = round(latest_close - prev_close, 2) if prev_close not in (None, 0) else None
+
+        stocks.append(
+            {
+                "symbol": ticker,
+                "name": SUPPLY_CHAIN_COMPANIES[ticker],
+                "price": latest_close,
+                "change": change,
+                "source": source,
+            }
+        )
+
+        recent_hist = hist.sort_index().tail(180)
+        closes = recent_hist["Close"].dropna()
+        if closes.empty:
+            raise ValueError(f"Missing recent close price data for {ticker}.")
+
+        volume_series = recent_hist["Volume"].dropna()
+        if volume_series.empty:
+            raise ValueError(f"Missing volume data for {ticker}.")
+
+        labels = recent_hist.index.strftime("%b %d").tolist()
+        stock_charts.append(
+            {
+                "ticker": ticker,
+                "name": SUPPLY_CHAIN_COMPANIES[ticker],
+                "labels": labels,
+                "price_data": closes.round(2).tolist(),
+                "volume_data": volume_series.round(2).tolist(),
+                "color": colors[ticker],
+                "source": source,
+            }
+        )
+
+    return {
+        "stocks": stocks,
+        "stock_charts": stock_charts,
+    }
+
+
 def get_dashboard_context():
     df = load_dataset_frame()
     tickers = sorted(df["Ticker"].str.upper().unique().tolist())
     latest_date = df["Date"].max()
     recent = df[df["Date"] >= (latest_date - pd.Timedelta(days=365))].copy()
+    tracked_tickers = [ticker for ticker in ["AAPL", "AMZN", "GOOGL", "META", "MSFT", "NVDA"] if ticker in tickers]
 
-    growth_tickers = [ticker for ticker in ["AAPL", "NVDA", "MSFT"] if ticker in tickers]
     growth_labels = []
     growth_series = []
+    volume_labels = []
+    volume_series = []
 
-    for ticker in growth_tickers:
+    for ticker in tracked_tickers:
         ticker_df = recent[recent["Ticker"].str.upper() == ticker].sort_values("Date")
         monthly = ticker_df.set_index("Date")["Close"].resample("ME").last().dropna()
         if monthly.empty:
@@ -183,31 +255,27 @@ def get_dashboard_context():
             }
         )
 
+        monthly_volume = ticker_df.set_index("Date")["Volume"].resample("ME").mean().dropna()
+        if not monthly_volume.empty:
+            if not volume_labels:
+                volume_labels = monthly_volume.index.strftime("%b %Y").tolist()
+
+            volume_series.append(
+                {
+                    "label": ticker,
+                    "data": monthly_volume.round(2).tolist(),
+                }
+            )
+
     latest_rows = df.sort_values("Date").groupby("Ticker").tail(1)
     market_return = latest_rows["Daily_Return"].dropna().mean()
     avg_volume = latest_rows["Volume"].dropna().mean()
 
-    risk_points = []
-    for ticker in tickers:
-        ticker_df = recent[recent["Ticker"].str.upper() == ticker].sort_values("Date")
-        returns = ticker_df["Daily_Return"].dropna()
-        if returns.empty:
-            continue
-
-        annual_return = round(returns.mean() * 252 * 100, 2)
-        annual_volatility = round(returns.std() * np.sqrt(252) * 100, 2)
-        risk_points.append(
-            {
-                "x": annual_volatility,
-                "y": annual_return,
-                "t": ticker,
-            }
-        )
-
     return {
         "growth_labels": growth_labels,
         "growth_series": growth_series,
-        "risk_points": risk_points,
+        "volume_labels": volume_labels,
+        "volume_series": volume_series,
         "stats": {
             "market_return": f"{market_return * 100:+.2f}%" if pd.notna(market_return) else "N/A",
             "stocks_tracked": len(tickers),
@@ -317,9 +385,16 @@ def explore():
 @app.route("/supply-chain")
 @login_required
 def supply_chain():
-    """Simple supply chain view - TSM -> NVDA -> TSLA"""
-    stocks = [get_market_snapshot(ticker) for ticker in ["TSM", "NVDA", "TSLA"]]
-    return render_template("supply_chain.html", stocks=stocks)
+    return render_template("supply_chain.html")
+
+
+@app.route("/supply_chain_data")
+@login_required
+def get_supply_chain_data():
+    try:
+        return jsonify(get_supply_chain_context())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------
@@ -487,4 +562,4 @@ def get_analysis_data():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=get_server_port())
