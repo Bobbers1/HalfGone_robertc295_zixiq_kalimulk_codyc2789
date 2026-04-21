@@ -137,7 +137,7 @@ def explore():
 @app.route("/supply-chain")
 @login_required
 def supply_chain():
-    """Simple supply chain view - TSM → NVDA → TSLA"""
+    """Simple supply chain view - TSM -> NVDA -> TSLA"""
     stocks = [
         {
             "symbol": "TSM",
@@ -269,10 +269,11 @@ def get_analysis_data():
         for ticker in pivot_returns.columns:
             returns = pivot_returns[ticker].dropna()
 
-            mean_return = returns.mean() * 252
+            mean_return = returns.mean() * 252 # number of trading days in a year
             volatility = returns.std() * np.sqrt(252)
+            risk_free_rate = 0.037  # currently 3.7% 3 month treasury rate
 
-            sharpe_ratio = mean_return / volatility if volatility > 0 else 0
+            sharpe_ratio = (mean_return - risk_free_rate) / volatility if volatility > 0 else 0
 
             ticker_data = df_recent[df_recent['Ticker'] == ticker].sort_values('Date')
 

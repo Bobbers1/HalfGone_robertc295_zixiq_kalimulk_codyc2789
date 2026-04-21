@@ -31,7 +31,7 @@
                 <p class="text-sm text-gray-600">{{ stock.name }}</p>
             </div>
             {% if not loop.last %}
-            <span class="text-2xl">→</span>
+            <span class="text-2xl">-></span>
             {% endif %}
             {% endfor %}
         </div>
@@ -39,11 +39,11 @@
         <!-- Info -->
         <div class="grid grid-cols-3 gap-4">
             <div class="bg-white p-4 border">
-                <h3 class="font-bold mb-2">TSM → NVIDIA</h3>
+                <h3 class="font-bold mb-2">TSM -> NVIDIA</h3>
                 <p class="text-sm">Taiwan Semiconductor makes chips for NVIDIA GPUs.</p>
             </div>
             <div class="bg-white p-4 border">
-                <h3 class="font-bold mb-2">NVIDIA → Tesla</h3>
+                <h3 class="font-bold mb-2">NVIDIA -> Tesla</h3>
                 <p class="text-sm">NVIDIA chips power Tesla's self-driving.</p>
             </div>
             <div class="bg-white p-4 border">

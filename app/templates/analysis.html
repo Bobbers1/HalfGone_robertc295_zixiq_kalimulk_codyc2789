@@ -68,6 +68,53 @@
             </div>
 
         </div>
+
+        <!-- EXPLANATION SECTION -->
+        <div class="bg-white p-6 rounded shadow mb-8">
+            <h3 class="text-lg font-semibold mb-4">How to Read This Analysis</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div>
+                    <h4 class="font-semibold text-blue-600 mb-2">Correlation Matrix</h4>
+                    <p class="text-sm text-gray-700 mb-2">
+                        Each cell shows how closely two stocks move together based on their daily returns
+                        over the past 2 years. Possible values range from <strong>-1.0 to 1.0</strong>:
+                    </p>
+                    <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                        <li><strong>1.0</strong> - two stocks move completely together</li>
+                        <li><strong>0.0</strong> - there is zero relationship between movements</li>
+                        <li><strong>-1.0</strong> - two stocks move completely opposite of each other</li>
+                    </ul>
+                    <p class="text-sm text-gray-600 mt-2">
+                        For a diversified portfolio, you want stocks with a correlation closer to 0.
+                        FAANG stocks tend to be highly correlated since they are part of the same tech sector.
+                    </p>
+                    <p class="text-sm text-gray-600 mt-2">
+                        To calculate the correlation coefficient between two stocks, you find the covariance of the daily stock returns and divide that number by the product of those returns' standard deviations. <br><br>
+                        Note: Covariance measures how two things tend to move together, but by itself it isn't standardized from -1 to 1, which is why we use the correlation coefficient.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold text-green-600 mb-2">Sharpe Ratio</h4>
+                    <p class="text-sm text-gray-700 mb-2">
+                        The Sharpe ratio measures how much return a stock delivered per unit of risk.
+                        It's calculated as:
+                    </p>
+                    <div class="bg-gray-100 rounded p-2 text-sm font-mono text-center mb-2">
+                        Sharpe = (Annual Return - Risk-free Rate) / Annual Volatility
+                    </div>
+                    <p class="text-sm text-gray-700 mb-2">
+                        Here, our annual return is calculated as the mean daily return over every trading day the past two years multiplied by 252 (average number of trading days per year). <br>
+                        The risk-free rate we use is the 3 month Treasury bill rate (currently about 3.7%), and the annual volatility is the mean standard deviation in returns each day multiplied by the square root of 252. <br><br>
+
+                        You may notice that the Sharpe ratios for several of these FAANG stocks are actually fairly low. This is in part due to their high volatilities.
+                    </p>
+                </div>
+
+            </div>
+        </div>
     </div>
 
     <script>
