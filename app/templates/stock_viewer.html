@@ -24,6 +24,7 @@
             <!-- Ticker 1 -->
             <div class="bg-white p-6 rounded shadow">
                 <h2 class="text-3xl font-bold mb-4">{{ ticker }}</h2>
+                <p class="text-sm text-gray-500 mb-4 uppercase tracking-wide">Source: {{ data_source }}</p>
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-gray-50 p-4 rounded">
                         <p class="text-gray-500 text-sm">Latest Price</p>
@@ -48,6 +49,7 @@
             {% if compare %}
             <div class="bg-white p-6 rounded shadow">
                 <h2 class="text-3xl font-bold mb-4">{{ compare }}</h2>
+                <p class="text-sm text-gray-500 mb-4 uppercase tracking-wide">Source: {{ compare_source }}</p>
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-gray-50 p-4 rounded">
                         <p class="text-gray-500 text-sm">Latest Price</p>

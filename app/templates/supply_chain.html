@@ -24,11 +24,20 @@
             {% for stock in stocks %}
             <div class="bg-white p-4 border">
                 <p class="font-bold">{{ stock.symbol }}</p>
-                <p class="text-xl">${{ stock.price }}</p>
+                {% if stock.price is not none %}
+                <p class="text-xl">${{ '%.2f'|format(stock.price) }}</p>
+                {% else %}
+                <p class="text-xl text-gray-500">Unavailable</p>
+                {% endif %}
+                {% if stock.change is not none %}
                 <p class="{% if stock.change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                    {% if stock.change >= 0 %}+{% endif %}{{ stock.change }}
+                    {% if stock.change >= 0 %}+{% endif %}{{ '%.2f'|format(stock.change) }}
                 </p>
+                {% else %}
+                <p class="text-gray-500">Change unavailable</p>
+                {% endif %}
                 <p class="text-sm text-gray-600">{{ stock.name }}</p>
+                <p class="text-xs text-gray-400 uppercase tracking-wide">{{ stock.source }}</p>
             </div>
             {% if not loop.last %}
             <span class="text-2xl">-></span>

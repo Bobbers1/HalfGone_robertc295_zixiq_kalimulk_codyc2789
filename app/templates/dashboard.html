@@ -45,48 +45,97 @@
             <h3 class="text-lg font-semibold mb-4">Quick Stats</h3>
             <div class="grid grid-cols-3 gap-4 text-center">
                 <div>
-                    <p class="text-2xl font-bold text-green-600">+2.4%</p>
-                    <p class="text-sm text-gray-600">S&P 500 Today</p>
+                    <p id="marketReturnStat" class="text-2xl font-bold text-green-600">Loading...</p>
+                    <p class="text-sm text-gray-600">Average Latest Daily Return</p>
                 </div>
                 <div>
-                    <p class="text-2xl font-bold text-blue-600">12</p>
+                    <p id="stocksTrackedStat" class="text-2xl font-bold text-blue-600">Loading...</p>
                     <p class="text-sm text-gray-600">Stocks Tracked</p>
                 </div>
                 <div>
-                    <p class="text-2xl font-bold text-purple-600">1.2M</p>
-                    <p class="text-sm text-gray-600">Volume Avg</p>
+                    <p id="avgVolumeStat" class="text-2xl font-bold text-purple-600">Loading...</p>
+                    <p class="text-sm text-gray-600">Latest Avg Volume</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        const growthColors = ['rgb(169, 169, 169)', 'rgb(118, 185, 0)', 'rgb(0, 120, 212)', 'rgb(66, 133, 244)'];
         const ctxGrowth = document.getElementById('growthChart').getContext('2d');
-        new Chart(ctxGrowth, {
+        const growthChart = new Chart(ctxGrowth, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-                datasets: [
-                    { label: 'AAPL', data: [100, 105, 103, 110, 115], borderColor: 'rgb(169, 169, 169)', tension: 0.1 },
-                    { label: 'NVDA', data: [100, 110, 115, 125, 130], borderColor: 'rgb(118, 185, 0)', tension: 0.1 },
-                    { label: 'MSFT', data: [100, 102, 105, 108, 110], borderColor: 'rgb(0, 120, 212)', tension: 0.1 }
-                ]
+                labels: [],
+                datasets: []
             },
             options: { responsive: true }
         });
 
         const ctxRisk = document.getElementById('riskChart').getContext('2d');
-        new Chart(ctxRisk, {
+        const riskChart = new Chart(ctxRisk, {
             type: 'scatter',
             data: {
                 datasets: [{
                     label: 'Stocks',
-                    data: [{x: 15, y: 12, t: 'AAPL'}, {x: 25, y: 18, t: 'NVDA'}, {x: 20, y: 10, t: 'MSFT'}, {x: 18, y: 8, t: 'GOOGL'}],
-                    backgroundColor: ['rgb(169, 169, 169)', 'rgb(118, 185, 0)', 'rgb(0, 120, 212)', 'rgb(66, 133, 244)']
+                    data: [],
+                    backgroundColor: []
                 }]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const point = ctx.raw;
+                                return `${point.t}: ${point.y}% return, ${point.x}% volatility`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Annualized Volatility (%)' } },
+                    y: { title: { display: true, text: 'Annualized Return (%)' } }
+                }
+            }
         });
+
+        function setErrorState(message) {
+            document.getElementById('marketReturnStat').textContent = message;
+            document.getElementById('stocksTrackedStat').textContent = '--';
+            document.getElementById('avgVolumeStat').textContent = '--';
+        }
+
+        fetch('{{ url_for("get_dashboard_data") }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('marketReturnStat').textContent = data.stats.market_return;
+                document.getElementById('stocksTrackedStat').textContent = data.stats.stocks_tracked;
+                document.getElementById('avgVolumeStat').textContent = data.stats.avg_volume;
+
+                growthChart.data.labels = data.growth_labels;
+                growthChart.data.datasets = data.growth_series.map((series, index) => ({
+                    label: series.label,
+                    data: series.data,
+                    borderColor: growthColors[index % growthColors.length],
+                    tension: 0.1
+                }));
+                growthChart.update();
+
+                riskChart.data.datasets[0].data = data.risk_points;
+                riskChart.data.datasets[0].backgroundColor = data.risk_points.map((_, index) => growthColors[index % growthColors.length]);
+                riskChart.update();
+            })
+            .catch(error => {
+                console.error('Failed to load dashboard data:', error);
+                setErrorState('Unavailable');
+            });
     </script>
 </body>
 </html>

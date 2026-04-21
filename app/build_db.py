@@ -9,29 +9,18 @@ import sqlite3
 import csv
 import os
 
-DB_FILE = "data.db"
+DB_FILE = os.path.join(os.path.dirname(__file__), "..", "data.db")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
 
 SQL_SCHEMA = """
-DROP TABLE IF EXISTS stock_data;
-DROP TABLE IF EXISTS stocks;
-DROP TABLE IF EXISTS users;
-
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE users (
-  id INTEGER PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE stocks (
+CREATE TABLE IF NOT EXISTS stocks (
   id INTEGER PRIMARY KEY,
   ticker TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE stock_data (
+CREATE TABLE IF NOT EXISTS stock_data (
   stock_id INTEGER NOT NULL,
   date TIMESTAMP NOT NULL,
   open_price FLOAT,
@@ -123,7 +112,9 @@ def main():
     c = db.cursor()
     c.executescript(SQL_SCHEMA)
     db.commit()
-    csv_populate(db)
+    has_stock_data = c.execute("SELECT COUNT(*) FROM stock_data").fetchone()[0] > 0
+    if not has_stock_data:
+        csv_populate(db)
     db.close()
 
 if __name__ == "__main__":
