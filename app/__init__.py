@@ -34,7 +34,6 @@ app = Flask(__name__)
 app.secret_key = "half_gone"
 
 DATABASE = os.path.join(os.path.dirname(__file__), "..", "data.db")
-CSV_PATH = os.path.join(os.path.dirname(__file__), "static", "faang_stock_prices.csv")
 SUPPLY_CHAIN_COMPANIES = {
     "TSM": "Taiwan Semiconductor",
     "NVDA": "NVIDIA",
@@ -43,7 +42,7 @@ SUPPLY_CHAIN_COMPANIES = {
 
 
 def get_server_port():
-    return int(os.environ.get("PORT", "5001"))
+    return int(os.environ.get("PORT", "5000"))
 
 
 # -----------------------------
