@@ -49,7 +49,7 @@ Zixi Qiao -- 4/19/26 11:00
 Zixi Qiao -- 4/20/26 11:46
   Fix analysis charts
 Robert chen -- 4/20/26 20:43
-  updated design doc
+  updated design doc (added stock_analysis, and supply_chain)
 Zixi Qiao -- 4/20/26 22:30
   Added explanations to analysis route
 Kalimul Kaif -- 4/20/26 23:00
