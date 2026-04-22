@@ -62,5 +62,5 @@ Zixi Qiao -- 4/21/26 18:00
   Updated getting dashboard data through stock_data db
 Robert Chen -- 4/21/26 10:55
   NOTABLE DESIGN DOC REVISIONS:
-  Addition of stock_analysis, and supply_chain
+  Addition of stock_analysis, and supply_chain routes
 
